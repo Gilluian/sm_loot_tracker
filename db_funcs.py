@@ -28,11 +28,11 @@ class LootTracker:
                         );''')
         self.cur.execute('''CREATE TABLE IF NOT EXISTS loot_record(
                         sql_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        item_id INTEGER NOT NULL REFERENCES items(wow_item_id) ON DELETE CASCADE,
-                        winner_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
                         date TEXT,
+                        winner_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
+                        item_id INTEGER NOT NULL REFERENCES items(wow_item_id) ON DELETE CASCADE,
                         soft_res INTEGER,
-                        offspec INTEGER
+                        checksum INTEGER
                         );''') # 1 = true, 0 = false. 1 it was softressed or an offspec roll, 0 it wasn't.
 
         self.initial_startup()
@@ -138,9 +138,9 @@ class LootTracker:
 
 # LOOT RECORD QUERIES
 
-    def insert_loot_record(self, item_id, winner_id, date, softres, offspec):
+    def insert_loot_record(self, date, winner_id, item_id, softres, checksum):
         insert_statement = ('INSERT INTO loot_record VALUES(?, ?, ?, ?, ?, ?)')
-        values = (None, item_id, winner_id, date, softres, offspec)
+        values = (None, date, winner_id, item_id, softres, checksum)
         self.cur.execute(insert_statement, values)
         self.conn.commit()
 

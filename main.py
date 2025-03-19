@@ -20,7 +20,8 @@ def main():
         elif user_choice.lower() == 'exit':
             exit(3)
         else:
-            raise ValueError("Enter a correct option")
+            print('invalid entry, try again')
+            continue
 
 
 def update_guild_roster():
@@ -35,7 +36,7 @@ def submit_loot_log(db):
         logs = list(reader)
 
     for index, value in enumerate(logs):
-        item_id, winner, date, soft_res, offspec = value[0].split(';')
+        date, winner, item_id, soft_res, checksum = value
         try:
             winner_id = db.get_playerid_from_name(winner)
         except IndexError as e:
@@ -44,17 +45,17 @@ def submit_loot_log(db):
             print(winner, 'was not in the database. Added.')
 
         try:
-            db.insert_loot_record(item_id, winner_id, date, soft_res, offspec)
+            db.insert_loot_record(date, winner_id, item_id, soft_res, checksum)
         except Exception as e:
             print(f"Exception occurred: {e}")
-            print(f'The offending line was: Line {index}, record was: {value}')
+            print(f'The offending line was: Line +- 1 of {index}, record was: {value}')
 
         if winner == '_disenchanted':
             print(f'{db.get_item_name_from_id(item_id)[0][0]} were disenchanted on {_format_date_into_datetime(date)}. Lame.')
         else:
             print(f'{winner} won {db.get_item_name_from_id(item_id)[0][0]} on {_format_date_into_datetime(date)}! Hooray!')
 
-    today = datetime.today().strftime('%Y%M%d')
+    today = datetime.today().strftime('%Y%m%d_%H%M%S')
     shutil.move(input_file, f'G:\\second_mains\\loot_logs\\{today}_lootlog.csv')
 def _format_date_into_datetime(date_string):
     '''
