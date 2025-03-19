@@ -50,9 +50,10 @@ class LootTracker:
             for i in roster:
                 name, rank, level, wow_class, race = i[0].split(';')
                 self.add_player(name,rank,level,wow_class,race)
-                print(f'added {name} to database')
+
 
             pass  #TODO if it's empty, we need to take the guild roster and load it into the DB
+        print('Finished adding players')
 
         if self.get_count_items()[0][0] == 0:
             print('Looks like initial startup. Adding items')
@@ -61,21 +62,32 @@ class LootTracker:
                 reader = csv.reader(f)
                 items = list(reader)
             print("Adding items to db.")
-            for i in items:
-                try:
-                    id, item_name = i
-                except ValueError as e:
-                    print('exception occurred:')
-                    print('error thrown', e)
-                    print(i)
-                    continue
-                self.add_item_to_item_tracker(id,item_name)
+            self.initial_item_load(items)
+
+                # self.add_item_to_item_tracker(id,item_name)
                 # self.add_item_on_startup(id, itemname)
+
 
             pass #TODO if it's empty, we need to take the items csv and load it into the DB
         pass
 
 # ITEM QUERIES
+    def initial_item_load(self, list_of_items):
+        """
+        :param list_of_items: I want a list of lists that has the full item list of lists.
+        each element will/should be [[item_id, item_name],[item2_id, item2_name]] etc.
+        :return:
+        """
+        for i in list_of_items:
+            assert len(i)==2
+            statement = 'INSERT INTO items VALUES(?, ?, ?)'
+            values = (None, i[0],i[1])
+            try:
+                self.cur.execute(statement, values)
+            except sqlite3.IntegrityError as e:
+                pass  # TODO need to add real logging
+            print(f'{i[1]} added')
+        self.conn.commit()
 
     def get_count_items(self):
         sql = 'SELECT count(*) FROM items'
