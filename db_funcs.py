@@ -41,10 +41,11 @@ class LootTracker:
         self.conn.close()
 
     def initial_startup(self):
+        # if the players table is empty..
         if self.get_count_players()[0][0] == 0:
             print('Looks like this is the initial startup. Adding guildmates.')
             sleep(1)
-            with open('guild_roster.csv','r',encoding='utf-8') as f:
+            with open('guild_roster/guild_roster.csv', 'r', encoding='utf-8') as f:
                 reader = csv.reader(f)
                 roster = list(reader)
             for i in roster:
@@ -53,8 +54,8 @@ class LootTracker:
 
 
             pass  #TODO if it's empty, we need to take the guild roster and load it into the DB
-        print('Finished adding players')
-
+            print('Finished adding players')
+        # if the items table is empty.
         if self.get_count_items()[0][0] == 0:
             print('Looks like initial startup. Adding items')
             sleep(1)
@@ -120,6 +121,13 @@ class LootTracker:
         return data
 
 # PLAYER QUERIES
+    def get_all_players(self):
+        sql = '''SELECT * FROM players
+                WHERE guild_rank IS NOT NULL
+                ORDER BY guild_rank;'''
+        self.cur.execute(sql)
+        data = self.cur.fetchall()
+        return data
 
     def get_count_players(self):
         sql = 'SELECT count(*) FROM players'

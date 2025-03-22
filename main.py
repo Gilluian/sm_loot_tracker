@@ -51,7 +51,7 @@ def submit_loot_log(db):
             print(f'The offending line was: Line +- 1 of {index}, record was: {value}')
 
         if winner == '_disenchanted':
-            print(f'{db.get_item_name_from_id(item_id)[0][0]} were disenchanted on {_format_date_into_datetime(date)}. Lame.')
+            print(f'{db.get_item_name_from_id(item_id)[0][0]} was disenchanted on {_format_date_into_datetime(date)}. Lame.')
         else:
             print(f'{winner} won {db.get_item_name_from_id(item_id)[0][0]} on {_format_date_into_datetime(date)}! Hooray!')
 
