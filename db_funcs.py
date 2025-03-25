@@ -24,7 +24,10 @@ class LootTracker:
                         guild_rank TEXT,
                         level INTEGER,
                         class TEXT,
-                        race TEXT
+                        race TEXT,
+                        public_note TEXT,
+                        officer_note TEXT,
+                        custom_note TEXT
                         );''')
         self.cur.execute('''CREATE TABLE IF NOT EXISTS loot_record(
                         sql_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,10 +37,17 @@ class LootTracker:
                         soft_res INTEGER,
                         checksum INTEGER
                         );''') # 1 = true, 0 = false. 1 it was softressed or an offspec roll, 0 it wasn't.
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS guild_movement(
+                        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                        player_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
+                        action TEXT,
+                        date TEXT 
+                        );''')
 
         self.initial_startup()
 
     def __del__(self):
+        print('closing')
         self.conn.close()
 
     def initial_startup(self):
@@ -49,7 +59,7 @@ class LootTracker:
                 reader = csv.reader(f)
                 roster = list(reader)
             for i in roster:
-                name, rank, level, wow_class, race = i[0].split(';')
+                name, rank, level, wow_class, race = i
                 self.add_player(name,rank,level,wow_class,race)
 
 
@@ -164,3 +174,15 @@ class LootTracker:
         self.cur.execute(insert_statement, values)
         self.conn.commit()
 
+# GUILD MOVEMENT
+
+    def lookup_movements_by_name(self, player_name):
+        id = self.get_playerid_from_name(player_name)
+
+        query = ('''SELECT p.name, gm.action, gm.date FROM guild_movement gm
+                 INNER JOIN players p ON gm.player_id = p.sql_id
+                 WHERE gm.player_id = ?;''')
+        values = (id,)
+        self.cur.execute(query, values)
+        results = self.cur.fetchall()
+        return results

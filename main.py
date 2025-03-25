@@ -1,9 +1,9 @@
 # main.py
 #
-import csv
+import csv, os, shutil, re
 from datetime import datetime, timedelta
 from db_funcs import LootTracker
-import shutil
+
 
 def main():
     print('Beginning setup')
@@ -12,6 +12,7 @@ def main():
     while True:
         print('MENU:')
         print('(update_roster) | (raid_loot) | (exit)')
+        print("(guild_movement)")
         user_choice = input(str("input > "))
         if user_choice.lower() == 'update_roster':
             update_guild_roster()
@@ -19,14 +20,18 @@ def main():
             submit_loot_log(db)
         elif user_choice.lower() == 'exit':
             exit(3)
+        elif user_choice.lower() == 'guild_movement':
+            if 'guild_log.csv' in os.listdir(os.getcwd()+'\\guild_roster'):
+                with open(os.getcwd()+'\\guild_roster\\guild_log.csv','r',encoding='utf-8') as f:
+                    reader=csv.reader(f)
+                    data = list(reader)[::-1]
+                guild_movement(db, data)
+            else:
+                print('Guild Log file not present')
+                continue
         else:
             print('invalid entry, try again')
             continue
-
-
-def update_guild_roster():
-    print()
-    pass
 
 
 def submit_loot_log(db):
@@ -57,14 +62,23 @@ def submit_loot_log(db):
 
     today = datetime.today().strftime('%Y%m%d_%H%M%S')
     shutil.move(input_file, f'G:\\second_mains\\loot_logs\\{today}_lootlog.csv')
-def _format_date_into_datetime(date_string):
-    '''
-    :param date_string:
-    :return:
-    This will turn a date into a datetime object.
-    '''
 
+def guild_movement(db, data_movement_log):
+    # This function will process the activity log from the GRM mod.
+    # we'll need a character id
+
+    pass
+
+
+def update_guild_roster():
+    print()
+    pass
+
+
+def _format_date_into_datetime(date_string):
+    # returns a datetime object - "Day of Week, Day Month Year"
     return datetime.strptime(date_string, '%Y-%m-%d').strftime('%A, %d %B %Y')
+
 
 if __name__ == '__main__':
     main()
