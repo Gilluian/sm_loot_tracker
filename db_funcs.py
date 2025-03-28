@@ -3,8 +3,7 @@
 # handles the database functions that the item tracker will utilize.
 
 
-import sqlite3
-import csv
+import sqlite3, csv
 from time import sleep
 from datetime import datetime
 
@@ -25,6 +24,7 @@ class LootTracker:
                         level INTEGER,
                         class TEXT,
                         race TEXT,
+                        invited_by TEXT,
                         public_note TEXT,
                         officer_note TEXT,
                         custom_note TEXT
@@ -40,14 +40,17 @@ class LootTracker:
         self.cur.execute('''CREATE TABLE IF NOT EXISTS guild_movement(
                         id INTEGER PRIMARY KEY AUTOINCREMENT, 
                         player_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
-                        action TEXT,
+                        officer_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
+                        action_id INTEGER REFERENCES guild_actions(id) ON DELETE CASCADE,
                         date TEXT 
                         );''')
-
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS guild_actions(
+                        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                        action_name TEXT 
+                        );''')
         self.initial_startup()
 
     def __del__(self):
-        print('closing')
         self.conn.close()
 
     def initial_startup(self):
@@ -61,10 +64,6 @@ class LootTracker:
             for i in roster:
                 name, rank, level, wow_class, race = i
                 self.add_player(name,rank,level,wow_class,race)
-
-
-            pass  #TODO if it's empty, we need to take the guild roster and load it into the DB
-            print('Finished adding players')
         # if the items table is empty.
         if self.get_count_items()[0][0] == 0:
             print('Looks like initial startup. Adding items')
@@ -75,12 +74,20 @@ class LootTracker:
             print("Adding items to db.")
             self.initial_item_load(items)
 
-                # self.add_item_to_item_tracker(id,item_name)
-                # self.add_item_on_startup(id, itemname)
+        # If guild actions is empty, fill the table
+        if self.get_guild_actions()[0][0]==0:
+
+            actions = ['join_guild', 'gquit', 'gkick',
+                   'level_up', 'reached_level_cap', 'promoted', 'demoted',
+                   'public_note_set', 'officer_note_set', 'custom_note_set',
+                   'banned']
+            for i in actions:
+                statement = '''INSERT INTO guild_actions VALUES(?, ?)'''
+                values = (None, i)
+                self.cur.execute(statement, values)
+            self.conn.commit()
 
 
-            pass #TODO if it's empty, we need to take the items csv and load it into the DB
-        pass
 
 # ITEM QUERIES
     def initial_item_load(self, list_of_items):
@@ -130,7 +137,7 @@ class LootTracker:
         data = self.cur.fetchall()
         return data
 
-# PLAYER QUERIES
+# PLAYER/GUILD QUERIES
     def get_all_players(self):
         sql = '''SELECT * FROM players
                 WHERE guild_rank IS NOT NULL
@@ -152,6 +159,7 @@ class LootTracker:
         self.cur.execute(sql, values)
         self.conn.commit()
 
+
     def get_playerid_from_name(self, name):
         statement = 'SELECT sql_id FROM players WHERE name = ?'
         values = (name,)
@@ -165,6 +173,10 @@ class LootTracker:
         self.cur.execute(statement, values)
         data = self.cur.fetchall()
         return data[0][0]
+
+    def update_guild_roster_when_player_leaves(self):
+        # when someone leaves the guild, we want to remove their guild rank.
+        pass
 
 # LOOT RECORD QUERIES
 
@@ -186,3 +198,30 @@ class LootTracker:
         self.cur.execute(query, values)
         results = self.cur.fetchall()
         return results
+
+    def remove_from_guild(self, player_name):
+        statement = '''UPDATE players SET guild_rank = '' WHERE name = ?'''
+        values = (player_name,)
+        self.cur.execute(statement,values)
+        self.conn.commit()
+
+# GUILD ACTIONS
+    def get_guild_actions(self):
+        sql = 'SELECT count(*) FROM guild_actions'
+        self.cur.execute(sql)
+        results = self.cur.fetchall()
+        return results
+
+    def get_guild_action_id_from_name(self, guild_action):
+        statement = 'SELECT id FROM guild_actions WHERE action_name = ?'
+        values = (guild_action,)
+        self.cur.execute(statement, values)
+        results = self.cur.fetchall()
+        return results
+
+    def insert_guild_movement(self,action, name, date):
+        player_id = self.get_playerid_from_name(name)
+        statement =  'INSERT INTO guild_movement VALUES(?, ?, ?, ?);'
+        values = (None, player_id, action, date)
+        self.cur.execute(statement, values)
+        self.conn.commit()
