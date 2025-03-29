@@ -2,10 +2,8 @@
 
 # handles the database functions that the item tracker will utilize.
 
-
 import sqlite3, csv
 from time import sleep
-from datetime import datetime
 
 class LootTracker:
     def __init__(self):
@@ -17,9 +15,9 @@ class LootTracker:
                         wow_itemid INTEGER UNIQUE,
                         item_name TEXT
                         );''')
-        self.cur.execute('''CREATE TABLE IF NOT EXISTS players (
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS players(
                         sql_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        name TEXT,
+                        name TEXT UNIQUE,
                         guild_rank TEXT,
                         level INTEGER,
                         class TEXT,
@@ -27,8 +25,10 @@ class LootTracker:
                         invited_by TEXT,
                         public_note TEXT,
                         officer_note TEXT,
-                        custom_note TEXT
+                        custom_note TEXT,
+                        banned TEXT
                         );''')
+
         self.cur.execute('''CREATE TABLE IF NOT EXISTS loot_record(
                         sql_id INTEGER PRIMARY KEY AUTOINCREMENT,
                         date TEXT,
@@ -40,13 +40,19 @@ class LootTracker:
         self.cur.execute('''CREATE TABLE IF NOT EXISTS guild_movement(
                         id INTEGER PRIMARY KEY AUTOINCREMENT, 
                         player_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
-                        officer_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
                         action_id INTEGER REFERENCES guild_actions(id) ON DELETE CASCADE,
                         date TEXT 
                         );''')
         self.cur.execute('''CREATE TABLE IF NOT EXISTS guild_actions(
                         id INTEGER PRIMARY KEY AUTOINCREMENT, 
                         action_name TEXT 
+                        );''')
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS level_log(
+                        sql_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        player_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
+                        level INTEGER,
+                        date TEXT,
+                        time TEXT
                         );''')
         self.initial_startup()
 
@@ -63,7 +69,7 @@ class LootTracker:
                 roster = list(reader)
             for i in roster:
                 name, rank, level, wow_class, race = i
-                self.add_player(name,rank,level,wow_class,race)
+                self.add_player(name,rank,level,wow_class,race, None, None, None, None, None)
         # if the items table is empty.
         if self.get_count_items()[0][0] == 0:
             print('Looks like initial startup. Adding items')
@@ -87,8 +93,6 @@ class LootTracker:
                 self.cur.execute(statement, values)
             self.conn.commit()
 
-
-
 # ITEM QUERIES
     def initial_item_load(self, list_of_items):
         """
@@ -103,7 +107,7 @@ class LootTracker:
             try:
                 self.cur.execute(statement, values)
             except sqlite3.IntegrityError as e:
-                pass  # TODO need to add real logging
+                pass
             print(f'{i[1]} added')
         self.conn.commit()
 
@@ -153,9 +157,9 @@ class LootTracker:
         return results
 
 
-    def add_player(self, name, rank, level, wow_class, race):
-        sql = 'INSERT INTO players VALUES(?, ?, ?, ?, ?, ?)'
-        values = (None, name, rank, level, wow_class, race)
+    def add_player(self, name, rank, level, wow_class, race, invited_by, public_note, officer_note, custom_note, banned):
+        sql = 'INSERT INTO players VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        values = (None, name, rank, level, wow_class, race, invited_by, public_note, officer_note, custom_note, banned)
         self.cur.execute(sql, values)
         self.conn.commit()
 
@@ -176,7 +180,14 @@ class LootTracker:
 
     def update_guild_roster_when_player_leaves(self):
         # when someone leaves the guild, we want to remove their guild rank.
-        pass
+        pass #TODO double check if we need this
+
+    def update_player_level_in_guild_roster(self, level, playerid):
+        update_player = '''UPDATE players SET level = ? WHERE sql_id = ?'''
+        values = (level, playerid)
+        self.cur.execute(update_player, values)
+        self.conn.commit()
+
 
 # LOOT RECORD QUERIES
 
@@ -205,6 +216,17 @@ class LootTracker:
         self.cur.execute(statement,values)
         self.conn.commit()
 
+    def kick_from_guild(self, action, player_name, officer_name, date):
+        action_id = self.get_guild_action_id_from_name(action)[0][0]
+        player_id = self.get_playerid_from_name(player_name)
+        # officer_id = self.get_playerid_from_name(officer_name)
+
+        statement = '''INSERT INTO guild_movement VALUES(?, ?, ?, ?);'''
+        values = (None, player_id, action_id, date)
+        self.cur.execute(statement, values)
+        self.conn.commit()
+
+
 # GUILD ACTIONS
     def get_guild_actions(self):
         sql = 'SELECT count(*) FROM guild_actions'
@@ -220,8 +242,19 @@ class LootTracker:
         return results
 
     def insert_guild_movement(self,action, name, date):
-        player_id = self.get_playerid_from_name(name)
+        try:
+            player_id = self.get_playerid_from_name(name)
+        except IndexError:
+            self.add_player(name, None, None, None, None, None, None, None, None, None)
+            player_id = self.get_playerid_from_name(name)
         statement =  'INSERT INTO guild_movement VALUES(?, ?, ?, ?);'
         values = (None, player_id, action, date)
         self.cur.execute(statement, values)
+        self.conn.commit()
+
+# LEVEL LOG COMMANDS
+    def insert_into_level_log(self, date, time, player_id, level):
+        statement = '''INSERT INTO level_log VALUES(?, ?, ?, ?, ?)'''
+        values = (None, player_id, level, date, time)
+        self.cur.execute(statement,values)
         self.conn.commit()

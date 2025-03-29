@@ -1,7 +1,7 @@
 # main.py
 #
-import csv, os, shutil, re, logging
-from datetime import datetime, timedelta
+import csv, os, shutil, re
+from datetime import datetime
 from db_funcs import LootTracker
 from time import sleep
 
@@ -37,7 +37,6 @@ def main():
             print('invalid entry, try again')
             continue
 
-
 def submit_loot_log(db):
     input_file = str(input("Path to input file: "))
     with open(input_file, 'r', encoding='utf-8') as f:
@@ -49,7 +48,7 @@ def submit_loot_log(db):
         try:
             winner_id = db.get_playerid_from_name(winner)
         except IndexError as e:
-            db.add_player(winner, None, None, None, None)
+            db.add_player(winner, None, None, None, None, None, None, None, None, None)
             winner_id = db.get_playerid_from_name(winner)
             print(winner, 'was not in the database. Added.')
 
@@ -81,45 +80,94 @@ def guild_movement(db, data_movement_log):
             try:
                 player_id = db.get_playerid_from_name(person_joined)
             except IndexError as f: # If they're not, add them to the guild.
-                db.add_player(person_joined, None, level, None, None)
+                db.add_player(person_joined, None, level, None, None, None, None, None, None, None)
                 player_id = db.get_playerid_from_name(person_joined)
-                print(f'Player Joined: {person_joined} ID {player_id} level {level}')
+                # TODO need to add the event to the guild_movement table, hard stop
+            print(f'{person_joined} has joined the guild.')
 
         #gquit
         elif 'has Left the guild' in i[0]:
             action = 'gquit'
+            action_id = db.get_guild_action_id_from_name(action)[0][0]
+
             pattern = r'[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) [0-9]{2}:[0-9]{2} : (\S+) has Left the guild.*'
             date, player_who_left = re.findall(pattern, i[0])[0]
             db.remove_from_guild(player_who_left)
             try:
-                db.insert_guild_movement(action, player_who_left, date)
+                db.insert_guild_movement(action_id, player_who_left, date)
             except IndexError:
                 # if we get this error, the player was in the guild but not in the program DB.
                 # We'll add the player and then add it to the log.
                 db.add_player(player_who_left, None, None, None, None)
-                db.insert_guild_movement(action,player_who_left, date)
+                db.insert_guild_movement(action_id,player_who_left, date)
+            print(f'{player_who_left} has left the guild.')
 
         #gkick
         elif 'KICKED' in i[0]:
-            pass
+
+            action = 'gkick'
+            pattern = r'[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) [0-9]{2}:[0-9]{2} : (\S+) KICKED (\S+) from the Guild!*'
+            date, officer_name, player_kicked = re.findall(pattern, i[0])[0]
+
+            try:
+                db.remove_from_guild(db.get_playerid_from_name(player_kicked))
+            except IndexError:
+                db.add_player(player_kicked, None, None, None, None, None, None, None, None, None)
+                db.remove_from_guild(db.get_playerid_from_name(player_kicked))
+
+            db.kick_from_guild(action, player_kicked, officer_name, date)
+            # print(player_kicked +'Kicked from Guild')
 
         #level up
         elif 'has Leveled to' in i[0]:
-            pass
+            # update guild roster, insert into level log
+            pattern = r'[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}) : (\S+) has Leveled to ([0-9]{1,})*'
+            date, time, player, level = re.findall(pattern, i[0])[0]
+            try:
+                player_id = db.get_playerid_from_name(player)
+            except IndexError:
+                db.add_player(player, None, None, None, None, None, None, None, None, None)
+                player_id = db.get_playerid_from_name(player)
+            db.update_player_level_in_guild_roster(level, player_id)
+            db.insert_into_level_log(date,time,player_id,level)
+            # print(f'{player.title()} has reached level {level}')
 
         #reached level cap
+        elif 'Level Cap!' in i[0]:
+            pattern = r'^[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}) : (\S+) has Reached the ([0-9]{1,}) Level Cap!'
+            date, time, player_name, level = re.findall(pattern, i[0])[0]
+            try:
+                player_id = db.get_playerid_from_name(player_name)
+            except IndexError:
+                db.add_player(player_name, None, None, None, None, None, None, None, None, None)
+                player_id = db.get_playerid_from_name(player_name)
+            db.update_player_level_in_guild_roster(level, player_id)
+            db.insert_into_level_log(date, time, player_id, level)
 
-        #promoted
+        #promoted or #demoted
+        elif 'PROMOTED' in i[0] or 'DEMOTED' in i[0]:
 
-        #demoted
+            pass #TODO
 
         #public note set
+        elif 'public note' in i[0].lower():
+            pass #TODO
 
         #officer_note_set
+        elif 'officer note' in i[0].lower():
+            pass #TODO
 
         #custom_note_set
+        elif 'custom note' in i[0].lower():
+            pass #TODO
 
         #banned
+        elif 'BANNED' in i[0].lower():
+            pass #TODO
+
+
+        elif 'REINVITED' in i[0].lower():
+            pass #TODO
 
 
     # Last step, move the log file out.

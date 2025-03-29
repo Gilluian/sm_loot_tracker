@@ -10,5 +10,3 @@
 --	inner join items i on lr.item_id = i.wow_itemid
 --where i.item_name like "%Nightslayer%";
 
-ALTER TABLE players
-ADD COLUMN
