@@ -1,4 +1,4 @@
---SELECT p.name, i.item_name, l.date
+--SELECT p.name, p.race, p.class, i.item_name, l.date
 --FROM items i
 --	INNER JOIN loot_record l on i.wow_itemid = l.item_id
 --	INNER JOIN players p on l.winner_id = p.sql_id

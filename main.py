@@ -27,7 +27,7 @@ def main():
             if 'guild_log.csv' in os.listdir(os.getcwd()+'\\guild_roster'):
                 with open(os.getcwd()+'\\guild_roster\\guild_log.csv','r',encoding='utf-8') as f:
                     reader=csv.reader(f)
-                    data = list(reader)[::-1]
+                    data = list(reader)[::-1]  # [::-1] reverses the order of the csv
                 guild_movement(db, data)
             else:
                 print('/guild_roster/guild_log.csv does not exist')
@@ -83,7 +83,6 @@ def guild_movement(db, data_movement_log):
                 db.add_player(person_joined, None, level, None, None, None, None, None, None, None)
                 player_id = db.get_playerid_from_name(person_joined)
                 # TODO need to add the event to the guild_movement table, hard stop
-            print(f'{person_joined} has joined the guild.')
 
         #gquit
         elif 'has Left the guild' in i[0]:
@@ -100,7 +99,6 @@ def guild_movement(db, data_movement_log):
                 # We'll add the player and then add it to the log.
                 db.add_player(player_who_left, None, None, None, None)
                 db.insert_guild_movement(action_id,player_who_left, date)
-            print(f'{player_who_left} has left the guild.')
 
         #gkick
         elif 'KICKED' in i[0]:
@@ -146,10 +144,23 @@ def guild_movement(db, data_movement_log):
 
         #promoted or #demoted
         elif 'PROMOTED' in i[0] or 'DEMOTED' in i[0]:
+            pattern = r'^[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) [0-9]{2}:[0-9]{2} : (\S+) (?:has been )?(PROMOTED|DEMOTED) (\S+) from (.+?) to (.+?)$'
 
-            pass #TODO
+            try:
+                date, officer, action, player_name, old_rank, new_rank = re.findall(pattern, i[0])[0]
+            except IndexError as e:
+                continue #TODO should come back and revisit.
 
-        #public note set
+            try:
+                player_id = db.get_playerid_from_name(player_name)
+            except IndexError:
+                db.add_player(player_name, None, None, None, None, None, None, None, None, None)
+                player_id = db.get_playerid_from_name(player_name)
+            officer_id = db.get_playerid_from_name(officer)
+            db.update_guild_rank(player_id, new_rank)
+            db.insert_rank_change(player_id, officer_id, action.lower(), old_rank, new_rank, date)
+
+       #public note set
         elif 'public note' in i[0].lower():
             pass #TODO
 

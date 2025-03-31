@@ -54,6 +54,16 @@ class LootTracker:
                         date TEXT,
                         time TEXT
                         );''')
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS rank_changes(
+                            sql_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            player_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
+                            officer_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
+                            action TEXT,
+                            old_rank TEXT,
+                            new_rank TEXT,
+                            date TEXT
+                            );''' )
+
         self.initial_startup()
 
     def __del__(self):
@@ -226,6 +236,11 @@ class LootTracker:
         self.cur.execute(statement, values)
         self.conn.commit()
 
+    def update_guild_rank(self, player_id, new_rank):
+        statement = '''UPDATE players SET guild_rank = ? WHERE sql_id = ?'''
+        values = (new_rank, player_id)
+        self.cur.execute(statement, values)
+        self.conn.commit()
 
 # GUILD ACTIONS
     def get_guild_actions(self):
@@ -256,5 +271,13 @@ class LootTracker:
     def insert_into_level_log(self, date, time, player_id, level):
         statement = '''INSERT INTO level_log VALUES(?, ?, ?, ?, ?)'''
         values = (None, player_id, level, date, time)
+        self.cur.execute(statement,values)
+        self.conn.commit()
+
+# RANK CHANGES QUERIES
+
+    def insert_rank_change(self, playerid, officerid, action, old_rank, new_rank, date):
+        statement = '''INSERT INTO rank_changes VALUES(?,?,?,?,?,?,?)'''
+        values = (None, playerid, officerid, action, old_rank, new_rank, date)
         self.cur.execute(statement,values)
         self.conn.commit()
