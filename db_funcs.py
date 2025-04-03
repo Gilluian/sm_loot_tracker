@@ -55,14 +55,14 @@ class LootTracker:
                         time TEXT
                         );''')
         self.cur.execute('''CREATE TABLE IF NOT EXISTS rank_changes(
-                            sql_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            player_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
-                            officer_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
-                            action TEXT,
-                            old_rank TEXT,
-                            new_rank TEXT,
-                            date TEXT
-                            );''' )
+                        sql_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        player_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
+                        officer_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
+                        action TEXT,
+                        old_rank TEXT,
+                        new_rank TEXT,
+                        date TEXT
+                        );''' )
 
         self.initial_startup()
 
@@ -153,9 +153,7 @@ class LootTracker:
 
 # PLAYER/GUILD QUERIES
     def get_all_players(self):
-        sql = '''SELECT * FROM players
-                WHERE guild_rank IS NOT NULL
-                ORDER BY guild_rank;'''
+        sql = '''SELECT name FROM players;'''
         self.cur.execute(sql)
         data = self.cur.fetchall()
         return data
@@ -256,14 +254,14 @@ class LootTracker:
         results = self.cur.fetchall()
         return results
 
-    def insert_guild_movement(self,action, name, date):
+    def insert_guild_movement(self,action_id, name, date):
         try:
             player_id = self.get_playerid_from_name(name)
         except IndexError:
             self.add_player(name, None, None, None, None, None, None, None, None, None)
             player_id = self.get_playerid_from_name(name)
         statement =  'INSERT INTO guild_movement VALUES(?, ?, ?, ?);'
-        values = (None, player_id, action, date)
+        values = (None, player_id, action_id, date)
         self.cur.execute(statement, values)
         self.conn.commit()
 
