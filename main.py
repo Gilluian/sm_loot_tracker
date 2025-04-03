@@ -68,7 +68,8 @@ def submit_loot_log(db):
 
 def guild_movement(db, data_movement_log):
     # This function will process the activity log from the GRM mod.
-    player_list = sorted([i[0] for i in db.get_all_players()])
+    join_guild_player_list = sorted([i[0] for i in db.get_all_players()])
+
 
     for i in data_movement_log:
         # joined guild
@@ -79,7 +80,7 @@ def guild_movement(db, data_movement_log):
             pattern = r'([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}) : (\w+) has JOINED the guild! \(LVL: ([0-9]+)\) - Invited By: (\w+)'
             date, person_joined, level, officer_name = re.findall(pattern, i[0])[0]
 
-            if person_joined not in player_list:
+            if person_joined not in join_guild_player_list:
                 db.add_player(person_joined, 'Second Main', level, None, None, officer_name, None, None, None, None)
                 print(f'{person_joined} added to guild as a Second Main')
                 db.insert_guild_movement(action_id, person_joined, date)

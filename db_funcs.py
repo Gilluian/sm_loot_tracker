@@ -152,6 +152,9 @@ class LootTracker:
         return data
 
 # PLAYER/GUILD QUERIES
+    def get_players_in_guild(self):
+        self.cur.execute('''SELECT name FROM players WHERE guild_rank IS ''')
+
     def get_all_players(self):
         sql = '''SELECT name FROM players;'''
         self.cur.execute(sql)
@@ -219,7 +222,7 @@ class LootTracker:
         return results
 
     def remove_from_guild(self, player_name):
-        statement = '''UPDATE players SET guild_rank = '' WHERE name = ?'''
+        statement = '''UPDATE players SET guild_rank = NULL WHERE name = ?'''
         values = (player_name,)
         self.cur.execute(statement,values)
         self.conn.commit()
