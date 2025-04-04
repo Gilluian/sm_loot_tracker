@@ -69,15 +69,17 @@ def submit_loot_log(db):
 def guild_movement(db, data_movement_log):
     # This function will process the activity log from the GRM mod.
     join_guild_player_list = sorted([i[0] for i in db.get_all_players()])
+    guilded_players = db.get_guilded_players()
 
 
     for i in data_movement_log:
         # joined guild
+        print(i)
         if 'has JOINED the guild!' in i[0]:
             action = 'join_guild'
             action_id = db.get_guild_action_id_from_name(action)[0][0]
 
-            pattern = r'([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}) : (\w+) has JOINED the guild! \(LVL: ([0-9]+)\) - Invited By: (\w+)'
+            pattern = r'([0-9]{4}-[0-9]{2}-[0-9]{2}) [0-9]{2}:[0-9]{2} : (\w+) has JOINED the guild! \(LVL: ([0-9]+)\) - Invited By: (\w+)'
             date, person_joined, level, officer_name = re.findall(pattern, i[0])[0]
 
             if person_joined not in join_guild_player_list:
@@ -93,30 +95,30 @@ def guild_movement(db, data_movement_log):
 
             pattern = r'[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) [0-9]{2}:[0-9]{2} : (\S+) has Left the guild.*'
             date, player_who_left = re.findall(pattern, i[0])[0]
-            db.remove_from_guild(player_who_left)
-            try:
+            if player_who_left in guilded_players:
+                # remove from guild
+                db.remove_from_guild(player_who_left)
+                # Add entry to guild movement
                 db.insert_guild_movement(action_id, player_who_left, date)
-            except IndexError:
-                # if we get this error, the player was in the guild but not in the program DB.
-                # We'll add the player and then add it to the log.
-                db.add_player(player_who_left, None, None, None, None)
-                db.insert_guild_movement(action_id,player_who_left, date)
+            else:
+                continue
 
         #gkick
         elif 'KICKED' in i[0]:
-
             action = 'gkick'
+            action_id = db.get_guild_action_id_from_name(action)[0][0]
+
             pattern = r'[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) [0-9]{2}:[0-9]{2} : (\S+) KICKED (\S+) from the Guild!*'
             date, officer_name, player_kicked = re.findall(pattern, i[0])[0]
 
-            try:
-                db.remove_from_guild(db.get_playerid_from_name(player_kicked))
-            except IndexError:
-                db.add_player(player_kicked, None, None, None, None, None, None, None, None, None)
-                db.remove_from_guild(db.get_playerid_from_name(player_kicked))
+            if player_kicked in guilded_players:
+                # remove from guild
+                db.remove_from_guild(player_kicked)
+                # Add entry to guild movement
+                db.insert_guild_movement(action_id, player_kicked, date)
+            else:
+                continue
 
-            db.kick_from_guild(action, player_kicked, officer_name, date)
-            # print(player_kicked +'Kicked from Guild')
 
         #level up
         elif 'has Leveled to' in i[0]:

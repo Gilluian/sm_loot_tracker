@@ -152,8 +152,9 @@ class LootTracker:
         return data
 
 # PLAYER/GUILD QUERIES
-    def get_players_in_guild(self):
-        self.cur.execute('''SELECT name FROM players WHERE guild_rank IS ''')
+    def get_guilded_players(self):
+        self.cur.execute('''SELECT name FROM players WHERE guild_rank IS NOT NULL ORDER BY name''')
+        return [name[0] for name in self.cur.fetchall()]
 
     def get_all_players(self):
         sql = '''SELECT name FROM players;'''
@@ -189,9 +190,6 @@ class LootTracker:
         data = self.cur.fetchall()
         return data[0][0]
 
-    def update_guild_roster_when_player_leaves(self):
-        # when someone leaves the guild, we want to remove their guild rank.
-        pass #TODO double check if we need this
 
     def update_player_level_in_guild_roster(self, level, playerid):
         update_player = '''UPDATE players SET level = ? WHERE sql_id = ?'''
@@ -227,16 +225,6 @@ class LootTracker:
         self.cur.execute(statement,values)
         self.conn.commit()
 
-    def kick_from_guild(self, action, player_name, officer_name, date):
-        action_id = self.get_guild_action_id_from_name(action)[0][0]
-        player_id = self.get_playerid_from_name(player_name)
-        # officer_id = self.get_playerid_from_name(officer_name)
-
-        statement = '''INSERT INTO guild_movement VALUES(?, ?, ?, ?);'''
-        values = (None, player_id, action_id, date)
-        self.cur.execute(statement, values)
-        self.conn.commit()
-
     def update_guild_rank(self, player_id, new_rank):
         statement = '''UPDATE players SET guild_rank = ? WHERE sql_id = ?'''
         values = (new_rank, player_id)
@@ -258,11 +246,7 @@ class LootTracker:
         return results
 
     def insert_guild_movement(self,action_id, name, date):
-        try:
-            player_id = self.get_playerid_from_name(name)
-        except IndexError:
-            self.add_player(name, None, None, None, None, None, None, None, None, None)
-            player_id = self.get_playerid_from_name(name)
+        player_id = self.get_playerid_from_name(name)
         statement =  'INSERT INTO guild_movement VALUES(?, ?, ?, ?);'
         values = (None, player_id, action_id, date)
         self.cur.execute(statement, values)
