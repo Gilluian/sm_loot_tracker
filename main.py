@@ -48,7 +48,7 @@ def submit_loot_log(db):
         try:
             winner_id = db.get_playerid_from_name(winner)
         except IndexError as e:
-            db.add_player(winner, None, None, None, None, None, None, None, None, None)
+            db.add_player(winner, None, None, None, None, None, None, None, None)
             winner_id = db.get_playerid_from_name(winner)
             print(winner, 'was not in the database. Added.')
 
@@ -64,8 +64,7 @@ def submit_loot_log(db):
             print(f'{winner} won {db.get_item_name_from_id(item_id)[0][0]} on {_format_date_into_datetime(date)}! Hooray!')
 
 
-    shutil.move(input_file, f'G:\\second_mains\\loot_logs\\{today}_lootlog.csv')
-
+    shutil.move(input_file, f'/tmp/{today}_lootlog.csv')
 def guild_movement(db, data_movement_log):
     # This function will process the activity log from the GRM mod.
     join_guild_player_list = sorted([i[0] for i in db.get_all_players()])

@@ -1,0 +1,5 @@
+
+
+Initial Startup
+
+When the script runs, it will do a check to see if the players and items tables have anything in them. If they don't,

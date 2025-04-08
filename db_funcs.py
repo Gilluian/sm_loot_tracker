@@ -25,8 +25,7 @@ class LootTracker:
                         invited_by TEXT,
                         public_note TEXT,
                         officer_note TEXT,
-                        custom_note TEXT,
-                        banned TEXT
+                        custom_note TEXT
                         );''')
 
         self.cur.execute('''CREATE TABLE IF NOT EXISTS loot_record(
@@ -63,23 +62,49 @@ class LootTracker:
                         new_rank TEXT,
                         date TEXT
                         );''' )
-
+        self.cur.execute('''CREATE VIEW last_raid AS
+                        SELECT p.name, p.race, p.class, i.item_name, lr.date
+                        FROM loot_record lr
+                        INNER JOIN players p ON lr.winner_id = p.sql_id
+                        INNER JOIN items i ON lr.item_id = i.wow_itemid
+                        WHERE lr.date = (SELECT max(date) from loot_record)
+                        AND p.name != '_disenchanted';
+                      ''')
+        self.cur.execute('''CREATE VIEW last_raid_disenchanted AS
+                        SELECT i.item_name, lr.date
+                        FROM loot_record lr
+                        INNER JOIN players p ON lr.winner_id = p.sql_id
+                        INNER JOIN items i ON lr.item_id = i.wow_itemid
+                        WHERE lr.date = (SELECT max(date) from loot_record)
+                        AND p.name = '_disenchanted';
+                      ''')
         self.initial_startup()
 
     def __del__(self):
+        self.cur.execute('''DROP VIEW IF EXISTS last_raid;''')
+        self.cur.execute('''DROP VIEW IF EXISTS last_raid_disenchanted;''')
         self.conn.close()
 
     def initial_startup(self):
-        # if the players table is empty..
+        # if the players table is empty.
         if self.get_count_players()[0][0] == 0:
             print('Looks like this is the initial startup. Adding guildmates.')
             sleep(1)
-            with open('guild_roster/guild_roster.csv', 'r', encoding='utf-8') as f:
+            with open('guild_roster.csv', 'r', encoding='utf-8') as f:
                 reader = csv.reader(f)
                 roster = list(reader)
+
+            self.add_player('_disenchanted',None, None, None, None,None, None, None, None)
             for i in roster:
-                name, rank, level, wow_class, race = i
-                self.add_player(name,rank,level,wow_class,race, None, None, None, None, None)
+                name, rank, level, wow_class, race, public_note, officer_note, custom_note = i
+                if public_note == '':
+                    public_note = None
+                if officer_note == '':
+                    officer_note = None
+                if custom_note == '':
+                    custom_note = None
+
+                self.add_player(name,rank,level,wow_class,race, None, public_note, officer_note, custom_note)
         # if the items table is empty.
         if self.get_count_items()[0][0] == 0:
             print('Looks like initial startup. Adding items')
@@ -118,7 +143,6 @@ class LootTracker:
                 self.cur.execute(statement, values)
             except sqlite3.IntegrityError as e:
                 pass
-            print(f'{i[1]} added')
         self.conn.commit()
 
     def get_count_items(self):
@@ -169,9 +193,9 @@ class LootTracker:
         return results
 
 
-    def add_player(self, name, rank, level, wow_class, race, invited_by, public_note, officer_note, custom_note, banned):
-        sql = 'INSERT INTO players VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        values = (None, name, rank, level, wow_class, race, invited_by, public_note, officer_note, custom_note, banned)
+    def add_player(self, name, rank, level, wow_class, race, invited_by, public_note, officer_note, custom_note):
+        sql = 'INSERT INTO players VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        values = (None, name, rank, level, wow_class, race, invited_by, public_note, officer_note, custom_note)
         self.cur.execute(sql, values)
         self.conn.commit()
 
