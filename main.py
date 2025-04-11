@@ -1,10 +1,12 @@
 # main.py
 #
-import csv, os, shutil, re
-from datetime import datetime
 from db_funcs import LootTracker
+from datetime import datetime
 from time import sleep
-
+import csv
+import os
+import shutil
+import re
 
 today = datetime.today().strftime('%Y%m%d_%H%M%S')
 
@@ -24,13 +26,14 @@ def main():
         elif user_choice.lower() == 'exit':
             exit(3)
         elif user_choice.lower() == 'guild_movement':
-            if 'guild_log.csv' in os.listdir(os.getcwd()+'\\guild_roster'):
-                with open(os.getcwd()+'\\guild_roster\\guild_log.csv','r',encoding='utf-8') as f:
+            input_file = 'guild_log.csv'
+            if input_file in os.listdir(os.getcwd()):
+                with open(os.getcwd()+'/'+input_file,'r',encoding='utf-8') as f:
                     reader=csv.reader(f)
                     data = list(reader)[::-1]  # [::-1] reverses the order of the csv
                 guild_movement(db, data)
             else:
-                print('/guild_roster/guild_log.csv does not exist')
+                print(f'{input_file} does not exist!')
                 sleep(2)
                 continue
         else:
@@ -66,15 +69,20 @@ def submit_loot_log(db):
 
     shutil.move(input_file, f'/tmp/{today}_lootlog.csv')
 def guild_movement(db, data_movement_log):
-    # This function will process the activity log from the GRM mod.
+    '''
+    :param db: the database object.
+    :param data_movement_log: This is the guild_log.csv. copy and paste from the GRM mod in wow.
+    :return:
+    '''
     join_guild_player_list = sorted([i[0] for i in db.get_all_players()])
     guilded_players = db.get_guilded_players()
 
 
     for i in data_movement_log:
         # joined guild
-        print(i)
         if 'has JOINED the guild!' in i[0]:
+            guilded_players = db.get_guilded_players()
+
             action = 'join_guild'
             action_id = db.get_guild_action_id_from_name(action)[0][0]
 
@@ -82,10 +90,10 @@ def guild_movement(db, data_movement_log):
             date, person_joined, level, officer_name = re.findall(pattern, i[0])[0]
 
             if person_joined not in join_guild_player_list:
-                db.add_player(person_joined, 'Second Main', level, None, None, officer_name, None, None, None, None)
-                print(f'{person_joined} added to guild as a Second Main')
+                db.add_player(person_joined, 'Second Main', level, None, None, officer_name, None, None, None)
                 db.insert_guild_movement(action_id, person_joined, date)
-                print(f'{person_joined} added to guild movement')
+            else:
+                continue
 
         #gquit
         elif 'has Left the guild' in i[0]:
@@ -165,15 +173,51 @@ def guild_movement(db, data_movement_log):
 
        #public note set
         elif 'public note' in i[0].lower():
-            pass #TODO
+            action = 'public_note_set'
+            action_id = db.get_guild_action_id_from_name(action)[0][0]
+            pattern  = r'''^[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) [0-9]{2}:[0-9]{2} : (\S+)'s PUBLIC Note: "(\S+)" was Added'''
+            date, guild_mate, new_note = re.findall(pattern, i[0])[0]
+
+            if guild_mate not in guilded_players:
+                try:
+                    db.quick_add_player(guild_mate)
+                except db.IntegrityError as e:
+                    print(f'ERROR OCCURRED: {e}')
+
+            db.update_public_note(guild_mate, new_note)
+            db.insert_guild_movement(action_id, guild_mate, date)
 
         #officer_note_set
         elif 'officer note' in i[0].lower():
-            pass #TODO
+            action = 'officer_note_set'
+            action_id = db.get_guild_action_id_from_name(action)[0][0]
+            pattern  = r'''^[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) [0-9]{2}:[0-9]{2} : (\S+)'s OFFICER Note: "(\S+)" was Added'''
+            date, guild_mate, new_note = re.findall(pattern, i[0])[0]
+
+            if guild_mate not in guilded_players:
+                try:
+                    db.quick_add_player(guild_mate)
+                except db.IntegrityError as e:
+                    print(f'ERROR OCCURRED: {e}')
+
+            db.update_officer_note(guild_mate, new_note)
+            db.insert_guild_movement(action_id, guild_mate, date)
 
         #custom_note_set
         elif 'custom note' in i[0].lower():
-            pass #TODO
+            action = 'custom_note_set'
+            action_id = db.get_guild_action_id_from_name(action)[0][0]
+            pattern  = r'''^[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) [0-9]{2}:[0-9]{2} : (\S+) modified (\S+)'s CUSTOM Note: "(\S+)" was Added'''
+            date, officer_name, guild_mate, new_note = re.findall(pattern, i[0])[0]
+
+            if guild_mate not in guilded_players:
+                try:
+                    db.quick_add_player(guild_mate)
+                except db.IntegrityError as e:
+                    print(f'ERROR OCCURRED: {e}')
+
+            db.update_custom_note(guild_mate, new_note)
+            db.insert_guild_movement(action_id, guild_mate, date)
 
         #banned
         elif 'BANNED' in i[0].lower():
@@ -185,8 +229,9 @@ def guild_movement(db, data_movement_log):
 
 
     # Last step, move the log file out.
-    print('end')
-    # shutil.move(os.getcwd()+'\\guild_roster\\guild_log.csv',f'G:\\second_mains\\guild_movement_logs\\{today}_guild_log.csv')
+    print('end of guild_movement')
+
+    shutil.move(os.getcwd()+'/guild_log.csv',f'/tmp/{today}_guild_log.csv')
 
 
 def update_guild_roster():

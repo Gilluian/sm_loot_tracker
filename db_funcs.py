@@ -2,7 +2,9 @@
 
 # handles the database functions that the item tracker will utilize.
 
-import sqlite3, csv
+import sqlite3
+from sqlite3 import IntegrityError
+import csv
 from time import sleep
 
 class LootTracker:
@@ -62,7 +64,8 @@ class LootTracker:
                         new_rank TEXT,
                         date TEXT
                         );''' )
-        self.cur.execute('''CREATE VIEW last_raid AS
+        try:
+            self.cur.execute('''CREATE VIEW last_raid AS
                         SELECT p.name, p.race, p.class, i.item_name, lr.date
                         FROM loot_record lr
                         INNER JOIN players p ON lr.winner_id = p.sql_id
@@ -70,7 +73,10 @@ class LootTracker:
                         WHERE lr.date = (SELECT max(date) from loot_record)
                         AND p.name != '_disenchanted';
                       ''')
-        self.cur.execute('''CREATE VIEW last_raid_disenchanted AS
+        except sqlite3.OperationalError as e:
+            print(e)
+        try:
+            self.cur.execute('''CREATE VIEW last_raid_disenchanted AS
                         SELECT i.item_name, lr.date
                         FROM loot_record lr
                         INNER JOIN players p ON lr.winner_id = p.sql_id
@@ -78,6 +84,9 @@ class LootTracker:
                         WHERE lr.date = (SELECT max(date) from loot_record)
                         AND p.name = '_disenchanted';
                       ''')
+        except sqlite3.OperationalError as e:
+            print(e)
+
         self.initial_startup()
 
     def __del__(self):
@@ -176,6 +185,38 @@ class LootTracker:
         return data
 
 # PLAYER/GUILD QUERIES
+
+    def update_public_note(self, name, note):
+        query = '''UPDATE players SET public_note = ? WHERE name = ?'''
+        values = (note, name)
+        self.cur.execute(query, values)
+        self.conn.commit()
+
+    def update_officer_note(self, name, note):
+        query = '''UPDATE players SET officer_note = ? WHERE name = ?'''
+        values = (note, name)
+        self.cur.execute(query, values)
+        self.conn.commit()
+
+    def update_custom_note(self, name, note):
+        query = '''UPDATE players SET custom_note = ? WHERE name = ?'''
+        values = (note, name)
+        self.cur.execute(query, values)
+        self.conn.commit()
+
+
+    def insert_rank_change(self, playerid, officerid, action, old_rank, new_rank, date):
+        statement = '''INSERT INTO rank_changes VALUES(?,?,?,?,?,?,?)'''
+        values = (None, playerid, officerid, action, old_rank, new_rank, date)
+        self.cur.execute(statement,values)
+        self.conn.commit()
+
+    def quick_add_player(self, name):
+        query = '''INSERT INTO players(name) VALUES(?)'''
+        values = (name,)
+        self.cur.execute(query,values)
+        self.conn.commit()
+
     def get_guilded_players(self):
         self.cur.execute('''SELECT name FROM players WHERE guild_rank IS NOT NULL ORDER BY name''')
         return [name[0] for name in self.cur.fetchall()]
@@ -269,7 +310,7 @@ class LootTracker:
         results = self.cur.fetchall()
         return results
 
-    def insert_guild_movement(self,action_id, name, date):
+    def insert_guild_movement(self, action_id, name, date):
         player_id = self.get_playerid_from_name(name)
         statement =  'INSERT INTO guild_movement VALUES(?, ?, ?, ?);'
         values = (None, player_id, action_id, date)
@@ -280,13 +321,5 @@ class LootTracker:
     def insert_into_level_log(self, date, time, player_id, level):
         statement = '''INSERT INTO level_log VALUES(?, ?, ?, ?, ?)'''
         values = (None, player_id, level, date, time)
-        self.cur.execute(statement,values)
-        self.conn.commit()
-
-# RANK CHANGES QUERIES
-
-    def insert_rank_change(self, playerid, officerid, action, old_rank, new_rank, date):
-        statement = '''INSERT INTO rank_changes VALUES(?,?,?,?,?,?,?)'''
-        values = (None, playerid, officerid, action, old_rank, new_rank, date)
         self.cur.execute(statement,values)
         self.conn.commit()
