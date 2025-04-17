@@ -3,9 +3,10 @@
 # handles the database functions that the item tracker will utilize.
 
 import sqlite3
-from sqlite3 import IntegrityError
+from sqlite3 import IntegrityError   # this may not be used in db_funcs, but it's used elsewhere. Don't delete me despite what pylint bitches about.
 import csv
 from time import sleep
+
 
 class LootTracker:
     def __init__(self):
@@ -37,17 +38,21 @@ class LootTracker:
                         item_id INTEGER NOT NULL REFERENCES items(wow_item_id) ON DELETE CASCADE,
                         soft_res INTEGER,
                         checksum INTEGER
-                        );''') # 1 = true, 0 = false. 1 it was softressed or an offspec roll, 0 it wasn't.
+                        );''')
+        #               1 = true, 0 = false. 1 it was softressed or an offspec roll, 0 it wasn't.
+
         self.cur.execute('''CREATE TABLE IF NOT EXISTS guild_movement(
                         id INTEGER PRIMARY KEY AUTOINCREMENT, 
                         player_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
                         action_id INTEGER REFERENCES guild_actions(id) ON DELETE CASCADE,
                         date TEXT 
                         );''')
+
         self.cur.execute('''CREATE TABLE IF NOT EXISTS guild_actions(
                         id INTEGER PRIMARY KEY AUTOINCREMENT, 
                         action_name TEXT 
                         );''')
+
         self.cur.execute('''CREATE TABLE IF NOT EXISTS level_log(
                         sql_id INTEGER PRIMARY KEY AUTOINCREMENT,
                         player_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
@@ -55,6 +60,7 @@ class LootTracker:
                         date TEXT,
                         time TEXT
                         );''')
+
         self.cur.execute('''CREATE TABLE IF NOT EXISTS rank_changes(
                         sql_id INTEGER PRIMARY KEY AUTOINCREMENT,
                         player_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
@@ -64,6 +70,7 @@ class LootTracker:
                         new_rank TEXT,
                         date TEXT
                         );''' )
+
         try:
             self.cur.execute('''CREATE VIEW last_raid AS
                         SELECT p.name, p.race, p.class, i.item_name, lr.date
@@ -75,6 +82,7 @@ class LootTracker:
                       ''')
         except sqlite3.OperationalError as e:
             print(e)
+
         try:
             self.cur.execute('''CREATE VIEW last_raid_disenchanted AS
                         SELECT i.item_name, lr.date
@@ -130,7 +138,7 @@ class LootTracker:
             actions = ['join_guild', 'gquit', 'gkick',
                    'level_up', 'reached_level_cap', 'promoted', 'demoted',
                    'public_note_set', 'officer_note_set', 'custom_note_set',
-                   'banned']
+                   'banned','public_note_removed','officer_note_removed','custom_note_removed']
             for i in actions:
                 statement = '''INSERT INTO guild_actions VALUES(?, ?)'''
                 values = (None, i)
@@ -151,7 +159,7 @@ class LootTracker:
             try:
                 self.cur.execute(statement, values)
             except sqlite3.IntegrityError as e:
-                pass
+                print('Error! ', e)
         self.conn.commit()
 
     def get_count_items(self):
@@ -171,14 +179,14 @@ class LootTracker:
         self.conn.commit()
 
     def get_item_id_from_name(self, item_name):
-        statement = ('SELECT wow_itemid FROM items WHERE item_name = ?')
+        statement = 'SELECT wow_itemid FROM items WHERE item_name = ?'
         values = (item_name,)
         self.cur.execute(statement, values)
         data = self.cur.fetchall()
         return data[0][0]
 
     def get_item_name_from_id(self,id):
-        statement = ('SELECT item_name FROM items WHERE wow_itemid = ?')
+        statement = 'SELECT item_name FROM items WHERE wow_itemid = ?'
         values = (id,)
         self.cur.execute(statement, values)
         data = self.cur.fetchall()
@@ -248,9 +256,9 @@ class LootTracker:
         data = self.cur.fetchall()
         return data[0][0]
 
-    def get_playername_from_id(self, id):
+    def get_playername_from_id(self, player_id):
         statement = 'SELECT name FROM players WHERE sql_id = ?'
-        values = (id,)
+        values = (player_id,)
         self.cur.execute(statement, values)
         data = self.cur.fetchall()
         return data[0][0]
@@ -266,7 +274,7 @@ class LootTracker:
 # LOOT RECORD QUERIES
 
     def insert_loot_record(self, date, winner_id, item_id, softres, checksum):
-        insert_statement = ('INSERT INTO loot_record VALUES(?, ?, ?, ?, ?, ?)')
+        insert_statement = 'INSERT INTO loot_record VALUES(?, ?, ?, ?, ?, ?)'
         values = (None, date, winner_id, item_id, softres, checksum)
         self.cur.execute(insert_statement, values)
         self.conn.commit()
@@ -274,12 +282,12 @@ class LootTracker:
 # GUILD MOVEMENT
 
     def lookup_movements_by_name(self, player_name):
-        id = self.get_playerid_from_name(player_name)
+        player_id = self.get_playerid_from_name(player_name)
 
         query = ('''SELECT p.name, gm.action, gm.date FROM guild_movement gm
                  INNER JOIN players p ON gm.player_id = p.sql_id
                  WHERE gm.player_id = ?;''')
-        values = (id,)
+        values = (player_id,)
         self.cur.execute(query, values)
         results = self.cur.fetchall()
         return results
