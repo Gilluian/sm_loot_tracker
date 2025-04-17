@@ -267,4 +267,5 @@ def _format_date_into_datetime(date_string):
 
 if __name__ == '__main__':
     print('Lets Begin')
+    print('just work damn you')
     main()
