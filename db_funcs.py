@@ -28,7 +28,9 @@ class LootTracker:
                         invited_by TEXT,
                         public_note TEXT,
                         officer_note TEXT,
-                        custom_note TEXT
+                        custom_note TEXT,
+                        main_flag INTEGER,
+                        alts TEXT
                         );''')
 
         self.cur.execute('''CREATE TABLE IF NOT EXISTS loot_record(
@@ -78,7 +80,8 @@ class LootTracker:
                         INNER JOIN players p ON lr.winner_id = p.sql_id
                         INNER JOIN items i ON lr.item_id = i.wow_itemid
                         WHERE lr.date = (SELECT max(date) from loot_record)
-                        AND p.name != '_disenchanted';
+                        AND p.name != '_disenchanted'
+                        AND guild_rank IS NOT NULL;
                       ''')
         except sqlite3.OperationalError as e:
             print(e)
@@ -94,12 +97,25 @@ class LootTracker:
                       ''')
         except sqlite3.OperationalError as e:
             print(e)
+        try:
+            self.cur.execute('''CREATE VIEW last_raid_pug AS
+                        SELECT p.name, i.item_name, lr.date
+                        FROM loot_record lr
+                        INNER JOIN players p ON lr.winner_id = p.sql_id
+                        INNER JOIN items i ON lr.item_id = i.wow_itemid
+                        WHERE lr.date = (SELECT max(date) from loot_record)
+                        AND p.name != '_disenchanted'
+                        AND guild_rank IS NULL;
+                      ''')
+        except sqlite3.OperationalError as e:
+            print(e)
 
         self.initial_startup()
 
     def __del__(self):
         self.cur.execute('''DROP VIEW IF EXISTS last_raid;''')
         self.cur.execute('''DROP VIEW IF EXISTS last_raid_disenchanted;''')
+        self.cur.execute('''DROP VIEW IF EXISTS last_raid_pug''')
         self.conn.close()
 
     def initial_startup(self):
@@ -111,9 +127,10 @@ class LootTracker:
                 reader = csv.reader(f)
                 roster = list(reader)
 
-            self.add_player('_disenchanted',None, None, None, None,None, None, None, None)
+            self.quick_add_player('_disenchanted')
             for i in roster:
-                name, rank, level, wow_class, race, public_note, officer_note, custom_note = i
+                print(i)
+                name, rank, level, wow_class, race, main_flag, alts, public_note, officer_note, custom_note = i
                 if public_note == '':
                     public_note = None
                 if officer_note == '':
@@ -121,7 +138,15 @@ class LootTracker:
                 if custom_note == '':
                     custom_note = None
 
-                self.add_player(name,rank,level,wow_class,race, None, public_note, officer_note, custom_note)
+                if main_flag == 'Main':
+                    main_flag = 1
+                elif main_flag == 'Alt':
+                    main_flag = 0
+                else:
+                    continue
+
+                #self.add_player(name,rank,level,wow_class,race, None, public_note, officer_note, custom_note)
+                self._guild_add_character_initial_startup(name, rank, level, wow_class, race, main_flag, alts, public_note, officer_note, custom_note)
         # if the items table is empty.
         if self.get_count_items()[0][0] == 0:
             print('Looks like initial startup. Adding items')
@@ -159,7 +184,8 @@ class LootTracker:
             try:
                 self.cur.execute(statement, values)
             except sqlite3.IntegrityError as e:
-                print('Error! ', e)
+                pass
+                # print(f'Tried inserting {i}, received error: ', e)
         self.conn.commit()
 
     def get_count_items(self):
@@ -241,7 +267,7 @@ class LootTracker:
         results = self.cur.fetchall()
         return results
 
-
+        #eww gross you getting refactored,bud.
     def add_player(self, name, rank, level, wow_class, race, invited_by, public_note, officer_note, custom_note):
         sql = 'INSERT INTO players VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         values = (None, name, rank, level, wow_class, race, invited_by, public_note, officer_note, custom_note)
@@ -270,6 +296,13 @@ class LootTracker:
         self.cur.execute(update_player, values)
         self.conn.commit()
 
+    def _guild_add_character_initial_startup(self, name, rank, level, wow_class, race, main_flag, alts, public_note, officer_note, custom_note):
+        # plan for this is a temporary function. Add player sucks dick so gonna use this instead for now.
+        query = '''INSERT INTO players(name, guild_rank, level, class, race, main_flag, alts, public_note, officer_note, custom_note)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+        values = (name, rank, level, wow_class, race, main_flag, alts, public_note, officer_note, custom_note)
+        self.cur.execute(query, values)
+        self.conn.commit()
 
 # LOOT RECORD QUERIES
 

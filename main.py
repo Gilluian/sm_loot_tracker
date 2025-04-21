@@ -54,7 +54,7 @@ def submit_loot_log(db):
             winner_id = db.get_playerid_from_name(winner)
         except IndexError as e:
             print(e)
-            db.add_player(winner, None, None, None, None, None, None, None, None)
+            db.quick_add_player(winner)
             winner_id = db.get_playerid_from_name(winner)
             print(winner, 'was not in the database. Added.')
 
@@ -70,7 +70,7 @@ def submit_loot_log(db):
             print(f'{winner} won {item_name} on {loot_date}! Hooray!')
 
 
-    shutil.move(input_file, f'/tmp/{today}_lootlog.csv')
+    shutil.move(input_file, f'/var/secondmains_logs/loot_logs/{today}_lootlog.csv')
 def guild_movement(db, data_movement_log):
     """
     :param db: the database object.
@@ -266,6 +266,4 @@ def _format_date_into_datetime(date_string):
 
 
 if __name__ == '__main__':
-    print('Lets Begin')
-    print('just work damn you')
     main()
