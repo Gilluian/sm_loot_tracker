@@ -3,7 +3,6 @@
 # handles the database functions that the item tracker will utilize.
 
 import sqlite3
-from sqlite3 import IntegrityError   # this may not be used in db_funcs, but it's used elsewhere. Don't delete me despite what pylint bitches about.
 import csv
 from time import sleep
 
@@ -163,7 +162,8 @@ class LootTracker:
             actions = ['join_guild', 'gquit', 'gkick',
                    'level_up', 'reached_level_cap', 'promoted', 'demoted',
                    'public_note_set', 'officer_note_set', 'custom_note_set',
-                   'banned','public_note_removed','officer_note_removed','custom_note_removed']
+                   'banned','public_note_removed','officer_note_removed','custom_note_removed',
+                    'reinvited']
             for i in actions:
                 statement = '''INSERT INTO guild_actions VALUES(?, ?)'''
                 values = (None, i)
