@@ -1,13 +1,13 @@
-#!/usr/bin/env python3
+# !/usr/bin/env python3
 
 #
 from datetime import datetime
 from time import sleep
-import csv
-import os
-import shutil
-import re
-import sys
+from csv import reader
+from os import listdir, getcwd
+from shutil import move as move_file
+from re import findall, search
+from sys import exit as sysexit
 from db_funcs import LootTracker
 from sqlite3 import IntegrityError
 
@@ -25,13 +25,13 @@ def main():
         if user_choice.lower() == 'raid_loot':
             submit_loot_log(db)
         elif user_choice.lower() == 'exit':
-            sys.exit(3)
+            sysexit(3)
         elif user_choice.lower() == 'guild_movement':
             input_file = 'guild_log.csv'
-            if input_file in os.listdir(os.getcwd()):
-                with open(os.getcwd()+'/'+input_file,'r',encoding='utf-8') as f:
-                    reader=csv.reader(f)
-                    data = list(reader)[::-1]  # [::-1] reverses the order of the csv
+            if input_file in listdir(getcwd()):
+                with open(getcwd()+'/'+input_file,'r',encoding='utf-8') as f:
+                    readercsv = reader(f)
+                    data = list(readercsv)[::-1]  # [::-1] reverses the order of the csv
 
                 guild_movement(db, data)
             else:
@@ -45,8 +45,8 @@ def main():
 def submit_loot_log(db):
     input_file = str(input("Path to input file: "))
     with open(input_file, 'r', encoding='utf-8') as f:
-        reader = csv.reader(f)
-        logs = list(reader)
+        readercsv = reader(f)
+        logs = list(readercsv)
 
     for index, value in enumerate(logs):
         date, winner, item_id, soft_res, checksum = value
@@ -72,7 +72,7 @@ def submit_loot_log(db):
             print(f'{winner} won {item_name} on {loot_date}! Hooray!')
 
 
-    shutil.move(input_file, f'/var/secondmains_logs/loot_logs/{today}_lootlog.csv')
+    move_file(input_file, f'/var/secondmains_logs/loot_logs/{today}_lootlog.csv')
 def guild_movement(db, data_movement_log):
     """
     :param db: the database object.
@@ -91,7 +91,7 @@ def guild_movement(db, data_movement_log):
             action_id = db.get_guild_action_id_from_name(action)[0][0]
 
             pattern = r'([0-9]{4}-[0-9]{2}-[0-9]{2}) [0-9]{2}:[0-9]{2} : (\w+) has JOINED the guild! \(LVL: ([0-9]+)\) - Invited By: (\w+)'
-            date, person_joined, level, officer_name = re.findall(pattern, i[0])[0]
+            date, person_joined, level, officer_name = findall(pattern, i[0])[0]
 
             if person_joined not in join_guild_player_list:
                 db.quick_add_player(person_joined)
@@ -105,7 +105,7 @@ def guild_movement(db, data_movement_log):
             action_id = db.get_guild_action_id_from_name(action)[0][0]
 
             pattern = r'[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) [0-9]{2}:[0-9]{2} : (\S+) has Left the guild.*'
-            date, player_who_left = re.findall(pattern, i[0])[0]
+            date, player_who_left = findall(pattern, i[0])[0]
             if player_who_left in guilded_players:
                 # remove from guild
                 db.remove_from_guild(player_who_left)
@@ -120,7 +120,7 @@ def guild_movement(db, data_movement_log):
             action_id = db.get_guild_action_id_from_name(action)[0][0]
 
             pattern = r'[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) [0-9]{2}:[0-9]{2} : (\S+) KICKED (\S+) from the Guild!*'
-            date, officer_name, player_kicked = re.findall(pattern, i[0])[0]
+            date, officer_name, player_kicked = findall(pattern, i[0])[0]
 
             if player_kicked in guilded_players:
                 # remove from guild
@@ -134,7 +134,7 @@ def guild_movement(db, data_movement_log):
             #level up
             # update guild roster, insert into level log
             pattern = r'\d+\) (\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}) : (\S+)(?: \(\S+\))?(?: \([^)]+\))? has Leveled to (\d+) \(\+\d+ level[s]?\),?'
-            date, time, player, level = re.findall(pattern, i[0])[0]
+            date, time, player, level = findall(pattern, i[0])[0]
             try:
                 player_id = db.get_playerid_from_name(player)
             except IndexError:
@@ -147,7 +147,7 @@ def guild_movement(db, data_movement_log):
         elif 'Level Cap!' in i[0]:
             #reached level cap
             pattern = r'^[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}) : (\S+) has Reached the ([0-9]{1,}) Level Cap!'
-            date, time, player_name, level = re.findall(pattern, i[0])[0]
+            date, time, player_name, level = findall(pattern, i[0])[0]
             try:
                 player_id = db.get_playerid_from_name(player_name)
             except IndexError:
@@ -161,10 +161,10 @@ def guild_movement(db, data_movement_log):
             pattern = r'^[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) [0-9]{2}:[0-9]{2} : (\S+) (?:has been )?(PROMOTED|DEMOTED) (\S+) from (.+?) to (.+?)$'
 
             try:
-                date, officer, action, player_name, old_rank, new_rank = re.findall(pattern, i[0])[0]
+                date, officer, action, player_name, old_rank, new_rank = findall(pattern, i[0])[0]
             except IndexError as e:
                 print('error occurred ', e)
-                continue #TODO should come back and revisit.
+                continue
 
             try:
                 player_id = db.get_playerid_from_name(player_name)
@@ -180,16 +180,16 @@ def guild_movement(db, data_movement_log):
             set_pattern = r'''^[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) [0-9]{2}:[0-9]{2} : (\S+)'s PUBLIC Note: "(\S+)" was Added'''
             removed_pattern = r'''^[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) [0-9]{2}:[0-9]{2} : (\S+)'s PUBLIC Note: "(\S+)" was Removed'''
 
-            if re.search(set_pattern, i[0]):
+            if search(set_pattern, i[0]):
                 action = 'public_note_set'
                 action_id = db.get_guild_action_id_from_name(action)[0][0]
                 # pattern  = r'''^[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) [0-9]{2}:[0-9]{2} : (\S+)'s PUBLIC Note: "(\S+)" was Added'''
-                date, guild_mate, new_note = re.findall(set_pattern, i[0])[0]
-            elif re.search(removed_pattern, i[0]):
+                date, guild_mate, new_note = findall(set_pattern, i[0])[0]
+            elif search(removed_pattern, i[0]):
                 action = 'public_note_removed'
                 action_id = db.get_guild_action_id_from_name(action)[0][0]
                 # pattern  = r'''^[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) [0-9]{2}:[0-9]{2} : (\S+)'s PUBLIC Note: "(\S+)" was Added'''
-                date, guild_mate, new_note = re.findall(removed_pattern, i[0])[0]
+                date, guild_mate, new_note = findall(removed_pattern, i[0])[0]
             else:
                 continue
 
@@ -209,11 +209,11 @@ def guild_movement(db, data_movement_log):
             action_id = db.get_guild_action_id_from_name(action)[0][0]
 
             #officer_note_set
-            if re.search(add_pattern, i[0]):
-                date, guild_mate, new_note = re.findall(add_pattern, i[0])[0]
+            if search(add_pattern, i[0]):
+                date, guild_mate, new_note = findall(add_pattern, i[0])[0]
             #officer_note_removed
-            elif re.search(remove_pattern, i[0]):
-                date, guild_mate, new_note = re.findall(remove_pattern, i[0])[0]
+            elif search(remove_pattern, i[0]):
+                date, guild_mate, new_note = findall(remove_pattern, i[0])[0]
             else:
                 continue
 
@@ -233,10 +233,10 @@ def guild_movement(db, data_movement_log):
             set_pattern  = r'''^[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) [0-9]{2}:[0-9]{2} : (\S+) modified (\S+)'s CUSTOM Note: "(\S+)" was Added'''
             remove_pattern = r'''^[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) [0-9]{2}:[0-9]{2} : (\S+) modified (\S+)'s CUSTOM Note: "(\S+)" was Removed'''
 
-            if re.search(set_pattern, i[0]):
-                date, officer_name, guild_mate, new_note = re.findall(set_pattern, i[0])[0]
-            elif re.search(remove_pattern, i[0]):
-                date, officer_name, guild_mate, new_note = re.findall(remove_pattern, i[0])[0]
+            if search(set_pattern, i[0]):
+                date, officer_name, guild_mate, new_note = findall(set_pattern, i[0])[0]
+            elif search(remove_pattern, i[0]):
+                date, officer_name, guild_mate, new_note = findall(remove_pattern, i[0])[0]
             else:
                 continue
 
@@ -254,14 +254,14 @@ def guild_movement(db, data_movement_log):
             action = 'reinvited'
             action_id = db.get_guild_action_id_from_name(action)[0][0]
 
-            date, player, level = re.findall(pattern, i[0])[0]
+            date, player, level = findall(pattern, i[0])[0]
             player_id = db.get_playerid_from_name(player)
 
             db.update_guild_rank(player_id, 'Second Main')
             db.insert_guild_movement(action_id, player, date)
 
     # Last step, move the log file out.
-    shutil.move(os.getcwd()+'/guild_log.csv',f'/var/secondmains_logs/guild_movement/{today}_guild_movement_log.csv')
+    move_file(getcwd()+'/guild_log.csv',f'/var/secondmains_logs/guild_movement/{today}_guild_movement_log.csv')
     print('end of guild_movement')
 
 

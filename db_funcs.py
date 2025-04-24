@@ -13,10 +13,10 @@ class LootTracker:
         self.cur = self.conn.cursor()
 
         self.cur.execute('''CREATE TABLE IF NOT EXISTS items(
-                        sql_itemid INTEGER PRIMARY KEY AUTOINCREMENT,
-                        wow_itemid INTEGER UNIQUE,
-                        item_name TEXT
-                        );''')
+                            sql_itemid INTEGER PRIMARY KEY AUTOINCREMENT,
+                            wow_itemid INTEGER UNIQUE,
+                            item_name TEXT
+                            );''')
         self.cur.execute('''CREATE TABLE IF NOT EXISTS players(
                         sql_id INTEGER PRIMARY KEY AUTOINCREMENT,
                         name TEXT UNIQUE,
@@ -36,7 +36,7 @@ class LootTracker:
                         sql_id INTEGER PRIMARY KEY AUTOINCREMENT,
                         date TEXT,
                         winner_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
-                        item_id INTEGER NOT NULL REFERENCES items(wow_item_id) ON DELETE CASCADE,
+                        item_id INTEGER NOT NULL REFERENCES items(wow_itemid) ON DELETE CASCADE,
                         soft_res INTEGER,
                         checksum INTEGER
                         );''')
@@ -123,12 +123,11 @@ class LootTracker:
             print('Looks like this is the initial startup. Adding guildmates.')
             sleep(1)
             with open('guild_roster.csv', 'r', encoding='utf-8') as f:
-                reader = csv.reader(f)
-                roster = list(reader)
+                csvreader = csv.reader(f)
+                roster = list(csvreader)
 
             self.quick_add_player('_disenchanted')
             for i in roster:
-                print(i)
                 name, rank, level, wow_class, race, main_flag, alts, public_note, officer_note, custom_note = i
                 if public_note == '':
                     public_note = None
@@ -317,9 +316,9 @@ class LootTracker:
     def lookup_movements_by_name(self, player_name):
         player_id = self.get_playerid_from_name(player_name)
 
-        query = ('''SELECT p.name, gm.action, gm.date FROM guild_movement gm
+        query = '''SELECT p.name, gm.action_id, gm.date FROM guild_movement gm
                  INNER JOIN players p ON gm.player_id = p.sql_id
-                 WHERE gm.player_id = ?;''')
+                 WHERE gm.player_id = ?;'''
         values = (player_id,)
         self.cur.execute(query, values)
         results = self.cur.fetchall()
