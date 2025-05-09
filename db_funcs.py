@@ -13,9 +13,9 @@ class LootTracker:
         self.cur = self.conn.cursor()
 
         self.cur.execute('''CREATE TABLE IF NOT EXISTS items(
-                            sql_itemid INTEGER PRIMARY KEY AUTOINCREMENT,
-                            wow_itemid INTEGER UNIQUE,
-                            item_name TEXT
+                        sql_itemid INTEGER PRIMARY KEY AUTOINCREMENT,
+                        wow_itemid INTEGER UNIQUE,
+                        item_name TEXT
                             );''')
         self.cur.execute('''CREATE TABLE IF NOT EXISTS players(
                         sql_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -118,7 +118,7 @@ class LootTracker:
         self.conn.close()
 
     def initial_startup(self):
-        # if the players table is empty.
+        # if the main.players table is empty.
         if self.get_count_players()[0][0] == 0:
             print('Looks like this is the initial startup. Adding guildmates.')
             sleep(1)
@@ -143,9 +143,9 @@ class LootTracker:
                 else:
                     continue
 
-                #self.add_player(name,rank,level,wow_class,race, None, public_note, officer_note, custom_note)
+                #self.add_player(name, rank, level, wow_class, race, None, public_note, officer_note, custom_note)
                 self._guild_add_character_initial_startup(name, rank, level, wow_class, race, main_flag, alts, public_note, officer_note, custom_note)
-        # if the items table is empty.
+        # if the main.items table is empty.
         if self.get_count_items()[0][0] == 0:
             print('Looks like initial startup. Adding items')
             sleep(1)
@@ -155,7 +155,7 @@ class LootTracker:
             print("Adding items to db.")
             self.initial_item_load(items)
 
-        # If guild actions is empty, fill the table
+        # If guild_actions is empty, fill the table
         if self.get_guild_actions()[0][0]==0:
 
             actions = ['join_guild', 'gquit', 'gkick',
@@ -210,9 +210,9 @@ class LootTracker:
         data = self.cur.fetchall()
         return data[0][0]
 
-    def get_item_name_from_id(self,id):
+    def get_item_name_from_id(self, wow_id):
         statement = 'SELECT item_name FROM items WHERE wow_itemid = ?'
-        values = (id,)
+        values = (wow_id,)
         self.cur.execute(statement, values)
         data = self.cur.fetchall()
         return data
@@ -296,7 +296,7 @@ class LootTracker:
         self.conn.commit()
 
     def _guild_add_character_initial_startup(self, name, rank, level, wow_class, race, main_flag, alts, public_note, officer_note, custom_note):
-        # plan for this is a temporary function. Add player sucks dick so gonna use this instead for now.
+        # Plan for this is a temporary function. Add player sucks dick so using this instead for now.
         query = '''INSERT INTO players(name, guild_rank, level, class, race, main_flag, alts, public_note, officer_note, custom_note)
                     VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
         values = (name, rank, level, wow_class, race, main_flag, alts, public_note, officer_note, custom_note)
@@ -363,3 +363,30 @@ class LootTracker:
         values = (None, player_id, level, date, time)
         self.cur.execute(statement,values)
         self.conn.commit()
+
+    def load_players_from_roster_file(self, filename):
+        with open(filename, 'r', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            roster = list(reader)
+
+            for i in roster:
+                name, rank, level, wow_class, race, main_flag, alts, public_note, officer_note, custom_note = i
+                if public_note == '':
+                    public_note = None
+                if officer_note == '':
+                    officer_note = None
+                if custom_note == '':
+                    custom_note = None
+
+                if main_flag == 'Main':
+                    main_flag = 1
+                elif main_flag == 'Alt':
+                    main_flag = 0
+                else:
+                    continue
+
+                # self.add_player(name, rank, level, wow_class, race, None, public_note, officer_note, custom_note)
+                self._guild_add_character_initial_startup(name, rank, level, wow_class, race, main_flag, alts, public_note,
+                                                          officer_note, custom_note)
+
+        return roster

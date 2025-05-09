@@ -31,3 +31,12 @@ FROM loot_record lr
 WHERE lr.date IN ('2025-04-10','2025-04-11')
 AND p.name = '_disenchanted';
 */
+
+
+SELECT p.name, p.race, p.class, i.item_name, lr.date
+FROM loot_record lr
+    INNER JOIN players p ON lr.winner_id = p.sql_id
+    INNER JOIN items i ON lr.item_id = i.wow_itemid
+WHERE lr.date IN ('2025-04-27', '2025-05-02')
+    AND p.name != '_disenchanted'
+    AND guild_rank IS NOT NULL;

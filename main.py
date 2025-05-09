@@ -4,7 +4,7 @@
 from datetime import datetime
 from time import sleep
 from csv import reader
-from os import listdir, getcwd
+from os import listdir, getcwd, environ
 from shutil import move as move_file
 from re import findall, search
 from sys import exit as sysexit
@@ -38,6 +38,9 @@ def main():
                 print(f'{input_file} does not exist!')
                 sleep(2)
                 continue
+        elif user_choice.lower() == 'update_roster':
+            db.load_players_from_roster_file('guild_roster.csv')
+
         else:
             print('invalid entry, try again')
             continue
@@ -72,7 +75,7 @@ def submit_loot_log(db):
             print(f'{winner} won {item_name} on {loot_date}! Hooray!')
 
 
-    move_file(input_file, f'/var/secondmains_logs/loot_logs/{today}_lootlog.csv')
+    move_file(input_file, environ['APPDATA']+'\\'+f'programming projects\\secondmains_logs\\loot_logs\\{today}_lootlog.csv')
 def guild_movement(db, data_movement_log):
     """
     :param db: the database object.
@@ -260,8 +263,11 @@ def guild_movement(db, data_movement_log):
             db.update_guild_rank(player_id, 'Second Main')
             db.insert_guild_movement(action_id, player, date)
 
-    # Last step, move the log file out.
-    move_file(getcwd()+'/guild_log.csv',f'/var/secondmains_logs/guild_movement/{today}_guild_movement_log.csv')
+    # append the data file into the guild movement master file
+
+
+    # Last step, move the log file out
+    move_file(getcwd()+'/guild_log.csv',environ['APPDATA']+'\\'+f'programming projects\\secondmains_logs\\guild_movement\\{today}guild_movement_log.csv')
     print('end of guild_movement')
 
 
