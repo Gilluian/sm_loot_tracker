@@ -1,5 +1,5 @@
 # !/usr/bin/env python3
-
+import csv
 #
 from datetime import datetime
 from time import sleep
@@ -12,6 +12,8 @@ from db_funcs import LootTracker
 from sqlite3 import IntegrityError
 
 today = datetime.today().strftime('%Y%m%d_%H%M%S')
+environ['LOOT_LOG_LOCATION'] = r'E:\second_mains\loot_logs\lootlog_master.csv'
+environ['master_guildMovementLog_location'] = r'E:\second_mains\guild_movement_logs\guild_movement_log.csv'
 
 def main():
     print('Beginning setup')
@@ -46,10 +48,15 @@ def main():
             continue
 
 def submit_loot_log(db):
-    input_file = str(input("Path to input file: "))
+    input_file = 'lootlog.csv'
     with open(input_file, 'r', encoding='utf-8') as f:
         readercsv = reader(f)
         logs = list(readercsv)
+        # Append the loot log to the master file
+        with open(environ['LOOT_LOG_LOCATION'], 'a', encoding='utf-8') as lootlog_output:
+            for i in logs:
+                lootlog_output.write(','.join(i))
+                lootlog_output.write('\n')
 
     for index, value in enumerate(logs):
         date, winner, item_id, soft_res, checksum = value
@@ -75,6 +82,8 @@ def submit_loot_log(db):
             print(f'{winner} won {item_name} on {loot_date}! Hooray!')
 
 
+
+    # End, move the log file out of the working directory and into the log
     move_file(input_file, environ['APPDATA']+'\\'+f'programming projects\\secondmains_logs\\loot_logs\\{today}_lootlog.csv')
 def guild_movement(db, data_movement_log):
     """
@@ -82,6 +91,9 @@ def guild_movement(db, data_movement_log):
     :param data_movement_log: This is the guild_log.csv. copy and paste from the GRM mod in wow.
     :return:
     """
+    # append the data file into the guild movement master file
+    append_log_to_csv(environ['master_guildMovementLog_location'], data_movement_log)
+
     join_guild_player_list = sorted([i[0] for i in db.get_all_players()])
     guilded_players = db.get_guilded_players()
     for i in data_movement_log:
@@ -263,7 +275,6 @@ def guild_movement(db, data_movement_log):
             db.update_guild_rank(player_id, 'Second Main')
             db.insert_guild_movement(action_id, player, date)
 
-    # append the data file into the guild movement master file
 
 
     # Last step, move the log file out
@@ -273,7 +284,18 @@ def guild_movement(db, data_movement_log):
 
 def _format_date_into_datetime(date_string):
     # returns a datetime object - "Day of Week, Day Month Year"
+    # Only used in the terminal when the loot log is parsed.
     return datetime.strptime(date_string, '%Y-%m-%d').strftime('%A, %d %B %Y')
+
+def append_log_to_csv(file_location, data_in):
+    """
+    :param file: the file to write to.
+    :return:
+    """
+    with open(file_location, 'a', encoding='utf-8') as f:
+        for i in data_in:
+            f.write(','.join(i))
+            f.write('\n')
 
 
 if __name__ == '__main__':

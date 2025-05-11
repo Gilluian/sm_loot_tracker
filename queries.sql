@@ -24,12 +24,19 @@ AND p.name != '_disenchanted';
 */
 
 /*
-SELECT i.item_name, lr.date
+SELECT distinct i.item_name, lr.date, p.name
 FROM loot_record lr
 	INNER JOIN players p ON lr.winner_id = p.sql_id
 	INNER JOIN items i ON lr.item_id = i.wow_itemid
-WHERE lr.date IN ('2025-04-10','2025-04-11')
-AND p.name = '_disenchanted';
+AND p.name = 'Vallerya';
+*/
+
+/*
+SELECT i.item_name, lr.date, p.name
+FROM loot_record lr
+	INNER JOIN players p ON lr.winner_id = p.sql_id
+	INNER JOIN items i ON lr.item_id = i.wow_itemid
+AND p.name = 'Vallerya';
 */
 
 
