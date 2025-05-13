@@ -16,36 +16,43 @@ environ['LOOT_LOG_LOCATION'] = r'E:\second_mains\loot_logs\lootlog_master.csv'
 environ['master_guildMovementLog_location'] = r'E:\second_mains\guild_movement_logs\guild_movement_log.csv'
 
 def main():
-    print('Beginning setup')
     db = LootTracker()
-    print('Setup finished')
-    while True:
-        print('MENU:')
-        print('(update_roster) | (raid_loot) | (exit)')
-        print("(guild_movement)")
-        user_choice = input(str("input > "))
-        if user_choice.lower() == 'raid_loot':
-            submit_loot_log(db)
-        elif user_choice.lower() == 'exit':
-            sysexit(3)
-        elif user_choice.lower() == 'guild_movement':
-            input_file = 'guild_log.csv'
-            if input_file in listdir(getcwd()):
-                with open(getcwd()+'/'+input_file,'r',encoding='utf-8') as f:
-                    readercsv = reader(f)
-                    data = list(readercsv)[::-1]  # [::-1] reverses the order of the csv
+    # If the loot log file exists:
+    if 'lootlog.csv' in listdir():
+        submit_loot_log(db)
+    if 'guild_log.csv' in listdir():
+        with open('guild_log.csv', 'r', encoding='utf-8') as f:
+             readercsv = reader(f)
+             data = list(readercsv)[::-1]  # [::-1] reverses the order of the csv
+        guild_movement(db, data)
 
-                guild_movement(db, data)
-            else:
-                print(f'{input_file} does not exist!')
-                sleep(2)
-                continue
-        elif user_choice.lower() == 'update_roster':
-            db.load_players_from_roster_file('guild_roster.csv')
-
-        else:
-            print('invalid entry, try again')
-            continue
+    # while True:
+    #     print('MENU:')
+    #     print('(update_roster) | (raid_loot) | (exit)')
+    #     print("(guild_movement)")
+    #     user_choice = input(str("input > "))
+    #     if user_choice.lower() == 'raid_loot':
+    #         submit_loot_log(db)
+    #     elif user_choice.lower() == 'exit':
+    #         sysexit(3)
+    #     elif user_choice.lower() == 'guild_movement':
+    #         input_file = 'guild_log.csv'
+    #         if input_file in listdir(getcwd()):
+    #             with open(getcwd()+'/'+input_file,'r',encoding='utf-8') as f:
+    #                 readercsv = reader(f)
+    #                 data = list(readercsv)[::-1]  # [::-1] reverses the order of the csv
+    #
+    #             guild_movement(db, data)
+    #         else:
+    #             print(f'{input_file} does not exist!')
+    #             sleep(2)
+    #             continue
+    #     elif user_choice.lower() == 'update_roster':
+    #         db.load_players_from_roster_file('guild_roster.csv')
+    #
+    #     else:
+    #         print('invalid entry, try again')
+    #         continue
 
 def submit_loot_log(db):
     input_file = 'lootlog.csv'
@@ -81,10 +88,9 @@ def submit_loot_log(db):
         else:
             print(f'{winner} won {item_name} on {loot_date}! Hooray!')
 
-
-
     # End, move the log file out of the working directory and into the log
     move_file(input_file, environ['APPDATA']+'\\'+f'programming projects\\secondmains_logs\\loot_logs\\{today}_lootlog.csv')
+
 def guild_movement(db, data_movement_log):
     """
     :param db: the database object.
