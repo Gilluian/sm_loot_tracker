@@ -38,7 +38,7 @@ class LootTracker:
                         winner_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
                         item_id INTEGER NOT NULL REFERENCES items(wow_itemid) ON DELETE CASCADE,
                         soft_res INTEGER,
-                        checksum INTEGER
+                        checksum INTEGER UNIQUE
                         );''')
         #               1 = true, 0 = false. 1 it was softressed or an offspec roll, 0 it wasn't.
 
