@@ -1,6 +1,23 @@
 The sm loot tracker program is used to collect data about the loot drops we receive during raids. I track who wins loot & when they won it.
+sm_loot_tracker README
+Written by gilluian
+Start Date: 2025-02-01
+
+The main goal of this program is to process the loot logs from WoW mod Gargul and spit out a list of players and the items they've won from a raid. Second Mains us using a hybrid Soft-Reserve / Loot Council approach,
+and it's helpful to know who has won loot and when. This program translates the item ID that gargul provides in its export and reports back what the name of the item is. 
+
+The secondary goal of the program is to practice various different aspects of programming. I'm inexperienced with Github so I'm focusing on branching/committing to my repo instead of keeping everything locally. I also need
+to present data at the end of this, so I'll gain experience either with a discord bot, using Flask for an api, or maybe even django for a rudamentary web page that I could host from another box.
+
+Prerequisites
+* Python 3 version 13
+
+Startup Requirements
+
+At minimum, the item.csv document is required to start the program. The csv contains a list of all items in World of Warcraft, along with item id. 
+When running the program, you will need to provide a csv called "loot_log.csv", or, "guild_log.csv" to run. They are placed in the sm_loot_tracker root folder, and will be automatically parsed by the program.
+The program will insert loot records, guild records, and guild roster into a sqlite3 database. 
+Then you can select information from it.
 
 
-Initial Startup
 
-When the script runs, it will do a check to see if the players and items tables have anything in them. If they don't,
