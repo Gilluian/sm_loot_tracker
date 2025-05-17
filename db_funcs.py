@@ -141,7 +141,7 @@ class LootTracker:
                 elif main_flag == 'Alt':
                     main_flag = 0
                 else:
-                    continue
+                    pass
 
                 #self.add_player(name, rank, level, wow_class, race, None, public_note, officer_note, custom_note)
                 self._guild_add_character_initial_startup(name, rank, level, wow_class, race, main_flag, alts, public_note, officer_note, custom_note)
