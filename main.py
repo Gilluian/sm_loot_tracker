@@ -1,10 +1,9 @@
 # !/usr/bin/env python3
-import csv
-#
+
 from datetime import datetime
-from time import sleep
 from csv import reader
-from os import listdir, getcwd, environ
+from os import listdir, environ
+from os import name as os_name
 from shutil import move as move_file
 from re import findall, search
 from sys import exit as sysexit
@@ -12,8 +11,24 @@ from db_funcs import LootTracker
 from sqlite3 import IntegrityError
 
 today = datetime.today().strftime('%Y%m%d_%H%M%S')
-environ['LOOT_LOG_LOCATION'] = r'E:\second_mains\loot_logs\lootlog_master.csv'
-environ['master_guildMovementLog_location'] = r'E:\second_mains\guild_movement_logs\guild_movement_log.csv'
+
+if os_name == 'nt':
+    environ['loot_log_input_file'] = r'E:\python_projects\sm_loot_tracker\lootlog.csv'
+    environ['guild_log_input_file'] = r'E;\python_projects\sm_loot_tracker\guild_log.csv'
+    environ['LOOT_LOG_LOCATION'] = r'E:\second_mains\loot_logs\lootlog_master.csv'
+    environ['master_guildMovementLog_location'] = r'E:\second_mains\guild_movement_logs\guild_movement_log.csv'
+    environ['loot_log_temp'] = r'C:\Users\Public\second_mains\logs\loot_logs\\'
+    environ['guild_log_temp'] = r'C:\Users\Public\second_mains\logs\guild_movement_logs\\'
+elif os_name == 'posix':
+    environ['loot_log_input_file'] = r'/mnt/e/python_projects/sm_loot_tracker/lootlog.csv'
+    environ['guild_log_input_file'] = r'/mnt/e/python_projects/sm_loot_tracker/guild_log.csv'
+    environ['LOOT_LOG_LOCATION'] = r'/mnt/e/second_mains/loot_logs/lootlog_master.csv'
+    environ['master_guildMovementLog_location'] = r'/mnt/e/second_mains/guild_movement_logs/guild_movement_log.csv'
+    environ['loot_log_temp'] = r'/mnt/c/users/public/second_mains/logs/loot_logs/'
+    environ['guild_log_temp'] = r'/mnt/c/users/public/second_mains/logs/guild_movement/'
+else:
+    print('OS not recognized. Exiting.')
+    sysexit(3)
 
 def main():
     db = LootTracker()
@@ -26,37 +41,8 @@ def main():
              data = list(readercsv)[::-1]  # [::-1] reverses the order of the csv
         guild_movement(db, data)
 
-    # while True:
-    #     print('MENU:')
-    #     print('(update_roster) | (raid_loot) | (exit)')
-    #     print("(guild_movement)")
-    #     user_choice = input(str("input > "))
-    #     if user_choice.lower() == 'raid_loot':
-    #         submit_loot_log(db)
-    #     elif user_choice.lower() == 'exit':
-    #         sysexit(3)
-    #     elif user_choice.lower() == 'guild_movement':
-    #         input_file = 'guild_log.csv'
-    #         if input_file in listdir(getcwd()):
-    #             with open(getcwd()+'/'+input_file,'r',encoding='utf-8') as f:
-    #                 readercsv = reader(f)
-    #                 data = list(readercsv)[::-1]  # [::-1] reverses the order of the csv
-    #
-    #             guild_movement(db, data)
-    #         else:
-    #             print(f'{input_file} does not exist!')
-    #             sleep(2)
-    #             continue
-    #     elif user_choice.lower() == 'update_roster':
-    #         db.load_players_from_roster_file('guild_roster.csv')
-    #
-    #     else:
-    #         print('invalid entry, try again')
-    #         continue
-
 def submit_loot_log(db):
-    input_file = 'lootlog.csv'
-    with open(input_file, 'r', encoding='utf-8') as f:
+    with open(environ['loot_log_input_file'], 'r', encoding='utf-8') as f:
         readercsv = reader(f)
         logs = list(readercsv)
         # Append the loot log to the master file
@@ -80,8 +66,10 @@ def submit_loot_log(db):
         try:
             db.insert_loot_record(date, winner_id, item_id, soft_res, checksum)
         except Exception as e:
-            print(f"Exception occurred: {e}")
-            print(f'The offending line was: Line +- 1 of {index}, record was: {value}')
+            pass
+            # TODO  When logging is added, we need to log this! checksum must be unique
+            # print(f"Exception occurred: {e}")
+            # print(f'Line {index}, record was: {value}')
 
         if winner == '_disenchanted':
             print(f'{item_name} was disenchanted on {loot_date}. Lame.')
@@ -89,7 +77,7 @@ def submit_loot_log(db):
             print(f'{winner} won {item_name} on {loot_date}! Hooray!')
 
     # End, move the log file out of the working directory and into the log
-    move_file(input_file, environ['APPDATA']+'\\'+f'programming projects\\secondmains_logs\\loot_logs\\{today}_lootlog.csv')
+    move_file(environ['loot_log_input_file'], environ['loot_log_temp'] + rf'\{today}_lootlog.csv')
 
 def guild_movement(db, data_movement_log):
     """
@@ -167,7 +155,7 @@ def guild_movement(db, data_movement_log):
 
         elif 'Level Cap!' in i[0]:
             #reached level cap
-            pattern = r'^[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}) : (\S+) has Reached the ([0-9]{1,}) Level Cap!'
+            pattern = r'^[0-9]{1,}\) ([0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}) : (\S+) .+ has Reached the ([0-9]{1,}) Level Cap!'
             date, time, player_name, level = findall(pattern, i[0])[0]
             try:
                 player_id = db.get_playerid_from_name(player_name)
@@ -281,10 +269,8 @@ def guild_movement(db, data_movement_log):
             db.update_guild_rank(player_id, 'Second Main')
             db.insert_guild_movement(action_id, player, date)
 
-
-
     # Last step, move the log file out
-    move_file(getcwd()+'/guild_log.csv',environ['APPDATA']+'\\'+f'programming projects\\secondmains_logs\\guild_movement\\{today}guild_movement_log.csv')
+    move_file(environ['guild_log_input_file'], environ['guild_log_temp'] + rf'{today}_guild_movement_log.csv')
     print('end of guild_movement')
 
 
@@ -295,7 +281,7 @@ def _format_date_into_datetime(date_string):
 
 def append_log_to_csv(file_location, data_in):
     """
-    :param file: the file to write to.
+    :param file_location: the file to write to.
     :return:
     """
     with open(file_location, 'a', encoding='utf-8') as f:
