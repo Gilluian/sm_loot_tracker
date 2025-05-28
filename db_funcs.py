@@ -1,6 +1,6 @@
 # db_funcs.py
 
-# handles the database functions that the item tracker will utilize.
+# handles the database functions that the item tracker will utilize.W
 
 import sqlite3
 import csv
@@ -37,7 +37,7 @@ class LootTracker:
                         date TEXT,
                         winner_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
                         item_id INTEGER NOT NULL REFERENCES items(wow_itemid) ON DELETE CASCADE,
-                        soft_res INTEGER,
+                        off_spec INTEGER,
                         checksum INTEGER UNIQUE
                         );''')
         #               1 = true, 0 = false. 1 it was softressed or an offspec roll, 0 it wasn't.
@@ -80,7 +80,7 @@ class LootTracker:
                         INNER JOIN items i ON lr.item_id = i.wow_itemid
                         WHERE lr.date = (SELECT max(date) from loot_record)
                         AND p.name != '_disenchanted'
-                        AND guild_rank IS NOT NULL;
+                        AND p.guild_rank IS NOT NULL;
                       ''')
         except sqlite3.OperationalError as e:
             print(e)
@@ -112,6 +112,7 @@ class LootTracker:
         self.initial_startup()
 
     def __del__(self):
+        sleep(1)
         self.cur.execute('''DROP VIEW IF EXISTS last_raid;''')
         self.cur.execute('''DROP VIEW IF EXISTS last_raid_disenchanted;''')
         self.cur.execute('''DROP VIEW IF EXISTS last_raid_pug''')
@@ -141,7 +142,7 @@ class LootTracker:
                 elif main_flag == 'Alt':
                     main_flag = 0
                 else:
-                    pass
+                    main_flag = None
 
                 #self.add_player(name, rank, level, wow_class, race, None, public_note, officer_note, custom_note)
                 self._guild_add_character_initial_startup(name, rank, level, wow_class, race, main_flag, alts, public_note, officer_note, custom_note)
@@ -177,7 +178,7 @@ class LootTracker:
         :return:
         """
         for i in list_of_items:
-            assert len(i)==2
+            # assert len(i)==2
             statement = 'INSERT INTO items VALUES(?, ?, ?)'
             values = (None, i[0],i[1])
             try:
@@ -305,9 +306,9 @@ class LootTracker:
 
 # LOOT RECORD QUERIES
 
-    def insert_loot_record(self, date, winner_id, item_id, softres, checksum):
+    def insert_loot_record(self, date, winner_id, item_id, off_spec, checksum):
         insert_statement = 'INSERT INTO loot_record VALUES(?, ?, ?, ?, ?, ?)'
-        values = (None, date, winner_id, item_id, softres, checksum)
+        values = (None, date, winner_id, item_id, off_spec, checksum)
         self.cur.execute(insert_statement, values)
         self.conn.commit()
 
@@ -383,7 +384,7 @@ class LootTracker:
                 elif main_flag == 'Alt':
                     main_flag = 0
                 else:
-                    continue
+                    main_flag = None
 
                 # self.add_player(name, rank, level, wow_class, race, None, public_note, officer_note, custom_note)
                 self._guild_add_character_initial_startup(name, rank, level, wow_class, race, main_flag, alts, public_note,

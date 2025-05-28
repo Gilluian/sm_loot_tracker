@@ -9,12 +9,13 @@ from re import findall, search
 from sys import exit as sysexit
 from db_funcs import LootTracker
 from sqlite3 import IntegrityError
+import json
 
 today = datetime.today().strftime('%Y%m%d_%H%M%S')
 
 if os_name == 'nt':
     environ['loot_log_input_file'] = r'E:\python_projects\sm_loot_tracker\lootlog.csv'
-    environ['guild_log_input_file'] = r'E;\python_projects\sm_loot_tracker\guild_log.csv'
+    environ['guild_log_input_file'] = r'E:\python_projects\sm_loot_tracker\guild_log.csv'
     environ['LOOT_LOG_LOCATION'] = r'E:\second_mains\loot_logs\lootlog_master.csv'
     environ['master_guildMovementLog_location'] = r'E:\second_mains\guild_movement_logs\guild_movement_log.csv'
     environ['loot_log_temp'] = r'C:\Users\Public\second_mains\logs\loot_logs\\'
@@ -52,7 +53,7 @@ def submit_loot_log(db):
                 lootlog_output.write('\n')
 
     for index, value in enumerate(logs):
-        date, winner, item_id, soft_res, checksum = value
+        date, winner, item_id, off_spec, checksum = value
         item_name = db.get_item_name_from_id(item_id)[0][0]
         loot_date = _format_date_into_datetime(date)
         try:
@@ -64,17 +65,17 @@ def submit_loot_log(db):
             print(winner, 'was not in the database. Added.')
 
         try:
-            db.insert_loot_record(date, winner_id, item_id, soft_res, checksum)
+            db.insert_loot_record(date, winner_id, item_id, off_spec, checksum)
         except Exception as e:
             pass
             # TODO  When logging is added, we need to log this! checksum must be unique
             # print(f"Exception occurred: {e}")
             # print(f'Line {index}, record was: {value}')
 
-        if winner == '_disenchanted':
-            print(f'{item_name} was disenchanted on {loot_date}. Lame.')
-        else:
-            print(f'{winner} won {item_name} on {loot_date}! Hooray!')
+        # if winner == '_disenchanted':
+        #     print(f'{item_name} was disenchanted on {loot_date}. Lame.')
+        # else:
+        #     print(f'{winner} won {item_name} on {loot_date}! Hooray!')
 
     # End, move the log file out of the working directory and into the log
     move_file(environ['loot_log_input_file'], environ['loot_log_temp'] + rf'\{today}_lootlog.csv')
