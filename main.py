@@ -13,64 +13,97 @@ import json
 
 today = datetime.today().strftime('%Y%m%d_%H%M%S')
 
-if os_name == 'nt':
-    environ['loot_log_input_file'] = r'E:\python_projects\sm_loot_tracker\lootlog.csv'
-    environ['guild_log_input_file'] = r'E:\python_projects\sm_loot_tracker\guild_log.csv'
-    environ['LOOT_LOG_LOCATION'] = r'E:\second_mains\loot_logs\lootlog_master.csv'
-    environ['master_guildMovementLog_location'] = r'E:\second_mains\guild_movement_logs\guild_movement_log.csv'
-    environ['loot_log_temp'] = r'C:\Users\Public\second_mains\logs\loot_logs\\'
-    environ['guild_log_temp'] = r'C:\Users\Public\second_mains\logs\guild_movement_logs\\'
-elif os_name == 'posix':
-    environ['loot_log_input_file'] = r'/mnt/e/python_projects/sm_loot_tracker/lootlog.csv'
-    environ['guild_log_input_file'] = r'/mnt/e/python_projects/sm_loot_tracker/guild_log.csv'
-    environ['LOOT_LOG_LOCATION'] = r'/mnt/e/second_mains/loot_logs/lootlog_master.csv'
-    environ['master_guildMovementLog_location'] = r'/mnt/e/second_mains/guild_movement_logs/guild_movement_log.csv'
-    environ['loot_log_temp'] = r'/mnt/c/users/public/second_mains/logs/loot_logs/'
-    environ['guild_log_temp'] = r'/mnt/c/users/public/second_mains/logs/guild_movement/'
+paths = {
+    'loot_log_input_file': ('C:\\Users\\ahall\\PycharmProjects\\sm_loot_tracker\\lootlog', 'lootlog'),
+    'guild_log_input_file': ('C:\\Users\\ahall\\PycharmProjects\\sm_loot_tracker\\guild_log.csv', 'guild_log.csv'),
+    'LOOT_LOG_LOCATION': ('C:\\Users\\ahall\\PycharmProjects\\sm_loot_tracker\\lootlog_master.csv', 'lootlog_master.csv'),
+    'master_guildMovementLog_location': ('C:\\Users\\ahall\\PycharmProjects\\sm_loot_tracker\\guild_movement_log.csv', 'guild_movement_log.csv'),
+    'loot_log_temp': ('C:\\Users\\ahall\\PycharmProjects\\sm_loot_tracker\\', './'),
+    'guild_log_temp': ('C:\\Users\\ahall\\PycharmProjects\\sm_loot_tracker\\', './'),
+}
+
+if os_name in ('nt', 'posix'):
+    idx = 0 if os_name == 'nt' else 1
+    for key, val in paths.items():
+        environ[key] = val[idx]
 else:
     print('OS not recognized. Exiting.')
     sysexit(3)
 
 def main():
     db = LootTracker()
-    # If the loot log file exists:
-    if 'lootlog.csv' in listdir():
-        submit_loot_log(db)
-    if 'guild_log.csv' in listdir():
-        with open('guild_log.csv', 'r', encoding='utf-8') as f:
-             readercsv = reader(f)
-             data = list(readercsv)[::-1]  # [::-1] reverses the order of the csv
-        guild_movement(db, data)
+    try:
+        # If the loot log file exists:
+        if 'lootlog' in listdir():
+            submit_loot_log(db)
+        if 'guild_log.csv' in listdir():
+            with open('guild_log.csv', 'r', encoding='utf-8') as f:
+                 readercsv = reader(f)
+                 data = list(readercsv)[::-1]  # [::-1] reverses the order of the csv
+            guild_movement(db, data)
+    finally:
+        db.close()
 
 def submit_loot_log(db):
+    player_class_map = {
+        1: 'Warrior',
+        2: 'Paladin',
+        3: 'Hunter',
+        4: 'Rogue',
+        5: 'Priest',
+        6: None,
+        7: 'Shaman',
+        8: 'Mage',
+        9: 'Warlock',
+        10: None,
+        11: 'Druid'
+    }
+
     with open(environ['loot_log_input_file'], 'r', encoding='utf-8') as f:
-        readercsv = reader(f)
-        logs = list(readercsv)
-        # Append the loot log to the master file
-        with open(environ['LOOT_LOG_LOCATION'], 'a', encoding='utf-8') as lootlog_output:
-            for i in logs:
-                lootlog_output.write(','.join(i))
-                lootlog_output.write('\n')
+        raw = f.readlines()
+        logs = json.loads(raw[0])
 
-    for index, value in enumerate(logs):
-        date, winner, item_id, off_spec, checksum = value
-        item_name = db.get_item_name_from_id(item_id)[0][0]
-        loot_date = _format_date_into_datetime(date)
-        try:
-            winner_id = db.get_playerid_from_name(winner)
-        except IndexError as e:
-            print(e)
-            db.quick_add_player(winner)
-            winner_id = db.get_playerid_from_name(winner)
-            print(winner, 'was not in the database. Added.')
+    for i in logs:
+        rolls = i.get('Rolls')
+        sr_id = i.get('softresID')
+        if rolls is None:
+            rolls_text = None
+        else:
+            rolls_text = json.dumps(rolls)
 
-        try:
-            db.insert_loot_record(date, winner_id, item_id, off_spec, checksum)
-        except Exception as e:
-            pass
-            # TODO  When logging is added, we need to log this! checksum must be unique
-            # print(f"Exception occurred: {e}")
-            # print(f'Line {index}, record was: {value}')
+        if sr_id is None:
+            sr_text = None
+        else:
+            sr_text = json.dumps(sr_id)
+
+        db.insert_loot_record(i['OS'], i['PL'], rolls_text, i['SR'], i['TMB'], i['WL'], i['awardedBy'],
+                              i['awardedTo'],
+                              i['checksum'], i['itemID'], i['received'], sr_text, i['timestamp'],
+                              player_class_map[i['winnerClass']])
+
+    # # Append the loot log to the master file
+      # # with open(environ['LOOT_LOG_LOCATION'], 'a', encoding='utf-8') as lootlog_output:
+      # #     for i in logs:
+      # #         lootlog_output.write(','.join(i))
+      # #         lootlog_output.write('\n')
+      #
+      #                     for index, value in enumerate(logs):
+      #   try:
+      #       date, winner, item_id, off_spec, checksum = value
+      #   except ValueError:
+      #       print(f"Skipping malformed record at line {index}: {value}")
+      #       continue
+      #   item_name = db.get_item_name_from_id(item_id)[0][0]
+      #   loot_date = _format_date_into_datetime(date)
+
+      #
+      #   try:
+      #       db.insert_loot_record(date, winner_id, item_id, off_spec, checksum)
+      #   except Exception as e:
+      #       pass
+      #       # TODO  When logging is added, we need to log this! checksum must be unique
+      #       # print(f"Exception occurred: {e}")
+      #       # print(f'Line {index}, record was: {value}')
 
         # if winner == '_disenchanted':
         #     print(f'{item_name} was disenchanted on {loot_date}. Lame.')
@@ -78,7 +111,8 @@ def submit_loot_log(db):
         #     print(f'{winner} won {item_name} on {loot_date}! Hooray!')
 
     # End, move the log file out of the working directory and into the log
-    move_file(environ['loot_log_input_file'], environ['loot_log_temp'] + rf'\{today}_lootlog.csv')
+    move_file(environ['loot_log_input_file'], f"{environ['loot_log_temp']}{today}_lootlog.csv")
+
 
 def guild_movement(db, data_movement_log):
     """
@@ -271,7 +305,7 @@ def guild_movement(db, data_movement_log):
             db.insert_guild_movement(action_id, player, date)
 
     # Last step, move the log file out
-    move_file(environ['guild_log_input_file'], environ['guild_log_temp'] + rf'{today}_guild_movement_log.csv')
+    move_file(environ['guild_log_input_file'], f"{environ['guild_log_temp']}{today}_guild_movement_log.csv")
     print('end of guild_movement')
 
 
@@ -290,6 +324,18 @@ def append_log_to_csv(file_location, data_in):
             f.write(','.join(i))
             f.write('\n')
 
+def get_player_id(db, player_name):
+
+    try:
+          winner_id = db.get_playerid_from_name(player_name)
+    except IndexError as e:
+          print(e)
+          db.quick_add_player(player_name)
+          winner_id = db.get_playerid_from_name(player_name)
+          print(player_name, 'was not in the database. Added.')
+
+def convert_class_number_to_name(id_number):
+    return
 
 if __name__ == '__main__':
     main()
