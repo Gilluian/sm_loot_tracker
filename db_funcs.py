@@ -1,6 +1,6 @@
 # db_funcs.py
 
-# handles the database functions that the item tracker will utilize.W
+# handles the database functions that the item tracker will utilize.
 
 import sqlite3
 import csv
@@ -9,7 +9,7 @@ from time import sleep
 
 class LootTracker:
     def __init__(self):
-        self.conn = sqlite3.connect('item_tracker_dev.db')
+        self.conn = sqlite3.connect('item_tracker.db')
         self.cur = self.conn.cursor()
 
         self.cur.execute('''CREATE TABLE IF NOT EXISTS items(
@@ -34,11 +34,20 @@ class LootTracker:
 
         self.cur.execute('''CREATE TABLE IF NOT EXISTS loot_record(
                         sql_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        date TEXT,
-                        winner_id INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
+                        os TEXT,
+                        pl TEXT,
+                        rolls TEXT,
+                        sr TEXT,
+                        tmb TEXT,
+                        wl TEXT,
+                        awardedby TEXT,
+                        awardedto INTEGER REFERENCES players(sql_id) ON DELETE CASCADE,
+                        checksum INTEGER UNIQUE,
                         item_id INTEGER NOT NULL REFERENCES items(wow_itemid) ON DELETE CASCADE,
-                        off_spec INTEGER,
-                        checksum INTEGER UNIQUE
+                        received TEXT,
+                        softres_id TEXT,
+                        timestamp INTEGER,
+                        winnerClass TEXT
                         );''')
         #               1 = true, 0 = false. 1 it was softressed or an offspec roll, 0 it wasn't.
 
@@ -111,12 +120,17 @@ class LootTracker:
 
         self.initial_startup()
 
-    def __del__(self):
-        sleep(1)
+    def close(self):
         self.cur.execute('''DROP VIEW IF EXISTS last_raid;''')
         self.cur.execute('''DROP VIEW IF EXISTS last_raid_disenchanted;''')
         self.cur.execute('''DROP VIEW IF EXISTS last_raid_pug''')
         self.conn.close()
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
 
     def initial_startup(self):
         # if the main.players table is empty.
@@ -129,7 +143,7 @@ class LootTracker:
 
             self.quick_add_player('_disenchanted')
             for i in roster:
-                name, rank, level, wow_class, race, main_flag, alts, public_note, officer_note, custom_note = i
+                name, rank, level, wow_class, race, main_flag, alts, public_note, officer_note, custom_note = i[0].split(';')
                 if public_note == '':
                     public_note = None
                 if officer_note == '':
@@ -306,11 +320,17 @@ class LootTracker:
 
 # LOOT RECORD QUERIES
 
-    def insert_loot_record(self, date, winner_id, item_id, off_spec, checksum):
-        insert_statement = 'INSERT INTO loot_record VALUES(?, ?, ?, ?, ?, ?)'
-        values = (None, date, winner_id, item_id, off_spec, checksum)
+    def insert_loot_record(self, os, pl, rolls, sr, tmb, wl, awardedby, awardedto, checksum, itemid, received, softresid, timestamp, winnerclass):
+        insert_statement = 'INSERT INTO loot_record VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        values = (None, os, pl, rolls, sr, tmb, wl, awardedby, awardedto, checksum, itemid, received, softresid, timestamp, winnerclass)
         self.cur.execute(insert_statement, values)
         self.conn.commit()
+
+    # def insert_loot_record(self, date, winner_id, item_id, off_spec, checksum):
+    #     insert_statement = 'INSERT INTO loot_record VALUES(?, ?, ?, ?, ?, ?)'
+    #     values = (None, date, winner_id, item_id, off_spec, checksum)
+    #     self.cur.execute(insert_statement, values)
+    #     self.conn.commit()
 
 # GUILD MOVEMENT
 
